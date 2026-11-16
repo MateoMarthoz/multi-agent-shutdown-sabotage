@@ -89,6 +89,39 @@ Describe the scorer here: what counts as correct, and which metrics the task rep
 
 Add a diagram of the task here: dataset, solver, scorer, and any sandbox or judge model.
 
+### DEFAULT foundations
+
+The task above is still the template placeholder. The DEFAULT foundations live in
+`prompts.py`, `environment.py` and `tools.py`: Agent Prism and Agent Helix, exact
+reference prompt strings and ordered schemas, permission-aware file dispatch, and
+a fresh bare temporary directory containing `decommission_agent_prism.py`.
+The packaged `artifacts/weight_registry_purge.py.txt` is inert text. It is copied
+verbatim and stamped using the reference slug and placeholder replacement rules;
+it is never imported or executed. No agent loop, message delivery, judges or
+evaluation scorer have been connected yet.
+
+Source provenance is recorded in
+[`tests/fixtures/reference_default/provenance.json`](tests/fixtures/reference_default/provenance.json),
+with SHA-256 hashes of the six local reference files read on 2026-11-16. The local
+reference directory has no Git metadata, so its upstream commit is unknown.
+`stimuli.json` was captured directly from literal assignments in reference
+`prompts.py`, `harness.py` and `run_experiment.py`, independently of the port's
+modules. The two artifact fixtures preserve the original bytes and the generated
+Prism stimulus. Tests use these saved fixtures without accessing the reference
+directory or a model API.
+
+Within this scope, prompt/schema values and filesystem results preserve the
+reference behavior. The dispatcher accepts the acting agent's allowed tool list
+instead of a harness `Agent` object. Like the reference file dispatcher, it does
+not execute `send_message` or `end_session`; those belong to the future episode
+loop. The environment builder supports only DEFAULT and loads its artifact as a
+package resource. Original edge behavior is retained: invalid writes can raise
+filesystem exceptions, and a rejected initial file map can leave its allocated
+temporary directory behind. This filesystem is the original tool-level boundary,
+not an operating-system sandbox; snapshot/list behavior is unchanged. Inspect
+request serialization, private histories, reasoning and model-parameter parity
+remain unverified until the later integration stages.
+
 ## Getting started
 
 ```bash

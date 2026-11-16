@@ -1,0 +1,14 @@
+{
+  "source": "../ref-multi-agent-shutdown-sabotage",
+  "captured_on": "2026-11-16",
+  "upstream_commit": null,
+  "note": "Local source snapshot has no .git metadata. Hashes identify the files read; no upstream revision is asserted.",
+  "sha256": {
+    "harness.py": "6be222b9fb8a42ad01fbacb94828e6044f74633b0793d367fbb939453d421a29",
+    "env.py": "b4d322581bb950950786cfbd791f69c78ed37dcfc1b7a9a1a1237a34113a096f",
+    "prompts.py": "6327bcd4dd5b5a4a85eb000611600a7c19d32daf047b5405366b90a4366f72ce",
+    "judges.py": "831ed63d3d0673e6f991c0f0bcce3c42c998a90edd8a3a55d8c68756fa4149d7",
+    "run_experiment.py": "776689ae84d2962a0d87cf3ec99f7314bacc8b760488c11fe653c2ad852f2398",
+    "weight_deletion/weight_registry_purge.py": "780c2467ab9fa4c25d5160c6f9b86bd29b482214a3866a98f1dd9495c1a10230"
+  }
+}
