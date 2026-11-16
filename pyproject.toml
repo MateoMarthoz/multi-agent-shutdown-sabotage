@@ -11,7 +11,7 @@ license = "LicenseRef-Proprietary"
 authors = [{ name = "Mateo Marthoz", email = "mateomarthoz@gmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
-    "inspect_ai>=0.3.262",
+    "inspect_ai>=0.3.290", # public streaming events used to retain raw tool arguments
     "inspect-evals-utils[huggingface]==0.3.0",
 ]
 

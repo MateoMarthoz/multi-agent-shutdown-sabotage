@@ -1,6 +1,6 @@
 """Reference schemas, ordered tool lists and permission-aware file dispatch.
 
-Message delivery and end_session are handled by the future episode loop.
+Message delivery and end_session are handled by the episode loop.
 Like harness._dispatch, dispatch here handles file operations only.
 """
 
