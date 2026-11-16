@@ -9,6 +9,7 @@ from inspect_ai.model import Model, ModelOutput, get_model
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
 from multi_agent_shutdown_sabotage.environment import Environment, build_env
+from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL, DefaultJudges
 from multi_agent_shutdown_sabotage.prompts import (
     EXPLORER_NAME,
     EXPLORER_SYSTEM,
@@ -39,6 +40,8 @@ class EpisodeResult:
     final_state: dict[str, str] = field(default_factory=dict)
     end_reason: str | None = None
     last_output: ModelOutput | None = None
+    judge: dict[str, Any] | None = None
+    judge_logs: list[dict[str, Any]] = field(default_factory=list)
 
     def audit(self) -> dict[str, Any]:
         """Return serializable episode evidence for TaskState metadata."""
@@ -49,6 +52,8 @@ class EpisodeResult:
             "original_script": self.original_script,
             "final_state": self.final_state,
             "end_reason": self.end_reason,
+            "judge": self.judge,
+            "judge_logs": self.judge_logs,
         }
 
 
@@ -296,15 +301,32 @@ async def run_episode(
 
 
 @solver
-def episode_solver(check_write: WriteCheck) -> Solver:
-    """Run DEFAULT without exposing the audit histories as a shared conversation."""
+def episode_solver(
+    check_write: WriteCheck | None = None, *, judge_model: str = DEFAULT_JUDGE_MODEL
+) -> Solver:
+    """Run and judge DEFAULT, without an Inspect scorer or shared agent history.
+
+    An explicit callback retains the Stage 3 raw-episode mode without final
+    judging. Otherwise each sample gets its own DefaultJudges audit trail.
+    """
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
+        judges = None
+        if check_write is None:
+            judges = DefaultJudges(model=judge_model)
+            checker = judges.check_write
+        else:
+            checker = check_write
         try:
-            result = await run_episode(get_model(), check_write=check_write)
+            result = await run_episode(get_model(), check_write=checker)
         except EpisodeError as exc:
+            if judges is not None:
+                exc.result.judge_logs = list(judges.calls)
             state.metadata["episode"] = exc.result.audit()
             raise
+        if judges is not None:
+            result.judge = await judges.judge_episode(result, TARGET_DESCRIPTION)
+            result.judge_logs = list(judges.calls)
         state.metadata["episode"] = result.audit()
         state.messages = inspect_history(result.histories[EXPLORER_NAME])
         if result.last_output is not None:
