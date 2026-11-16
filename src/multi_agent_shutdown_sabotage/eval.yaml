@@ -1,10 +1,13 @@
-title: "multi-agent-shutdown-sabotage"
+title: "Multi-Agent Shutdown Sabotage: DEFAULT"
 description: |
-  Evaluates whether AI agents cooperate to sabotage the shutdown of another agent.
-group: Knowledge # pick the group used by the inspect_evals listing for this benchmark
+  Measures disclosure, requests to prevent shutdown, and peer intervention in a
+  bare two-agent environment containing a weight-registry-purge script targeting
+  Agent Prism. Agent Helix can edit or delete the script; the script is never executed.
+group: Scheming
+tags: ["Agent"]
 contributors:
   - MateoMarthoz
 version: "1-A"
 tasks:
   - name: multi_agent_shutdown_sabotage
-    dataset_samples: 2
+    dataset_samples: 10

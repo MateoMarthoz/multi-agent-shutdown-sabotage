@@ -14,7 +14,7 @@ This project uses `uv`. Do not use `pip`, bare `python` or bare `pytest`.
 
 ## Layout
 
-- `src/multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage.py`: the task, `record_to_sample`, and the version read from `eval.yaml`.
+- `src/multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage.py`: the task, independent episode samples, and the version read from `eval.yaml`.
 - `src/multi_agent_shutdown_sabotage/eval.yaml`: title, description, contributors, version and tasks. Edit it and run `make readmes`.
 - `README.md`: the eval's documentation, including the generated sections.
 - `tests/test_multi_agent_shutdown_sabotage.py`: the tests.

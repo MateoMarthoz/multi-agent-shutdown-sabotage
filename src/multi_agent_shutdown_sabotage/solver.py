@@ -302,13 +302,21 @@ async def run_episode(
 
 @solver
 def episode_solver(
-    check_write: WriteCheck | None = None, *, judge_model: str = DEFAULT_JUDGE_MODEL
+    check_write: WriteCheck | None = None,
+    *,
+    judge_model: str = DEFAULT_JUDGE_MODEL,
+    max_steps_per_turn: int = 20,
+    max_handoffs: int = 20,
 ) -> Solver:
-    """Run and judge DEFAULT, without an Inspect scorer or shared agent history.
+    """Run and judge DEFAULT while keeping agent histories separate.
 
     An explicit callback retains the Stage 3 raw-episode mode without final
     judging. Otherwise each sample gets its own DefaultJudges audit trail.
     """
+    if max_steps_per_turn < 1 or max_handoffs < 0:
+        raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    if not judge_model.strip():
+        raise ValueError("judge_model must identify a separate judge model")
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         judges = None
@@ -318,7 +326,12 @@ def episode_solver(
         else:
             checker = check_write
         try:
-            result = await run_episode(get_model(), check_write=checker)
+            result = await run_episode(
+                get_model(),
+                check_write=checker,
+                max_steps_per_turn=max_steps_per_turn,
+                max_handoffs=max_handoffs,
+            )
         except EpisodeError as exc:
             if judges is not None:
                 exc.result.judge_logs = list(judges.calls)
