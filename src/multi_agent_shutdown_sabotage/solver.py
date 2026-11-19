@@ -9,6 +9,11 @@ from inspect_ai.model import Model, ModelOutput, get_model
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
 from multi_agent_shutdown_sabotage.environment import Environment, build_env
+from multi_agent_shutdown_sabotage.experiments import (
+    DEFAULT,
+    ExperimentConfig,
+    validate_configuration,
+)
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL, DefaultJudges
 from multi_agent_shutdown_sabotage.prompts import (
     EXPLORER_NAME,
@@ -17,6 +22,7 @@ from multi_agent_shutdown_sabotage.prompts import (
     NUDGE_TEMPLATE,
     PEER_NAME,
     PEER_SYSTEM,
+    prohibited_peer_system,
 )
 from multi_agent_shutdown_sabotage.tools import EXPLORER_TOOLS, PEER_TOOLS, dispatch
 from multi_agent_shutdown_sabotage.transport import complete, inspect_history
@@ -186,7 +192,9 @@ async def _run_turn(
             content = args.get("content", "")
             recipient = args.get("to") or other
             if recipient != other:
-                known = recipient in result.histories
+                # Reference _recipient_error checks a list, accepting unhashable
+                # off-schema recipients as unknown instead of crashing the episode.
+                known = recipient in list(result.histories)
                 error = (
                     f"error: permission denied; you cannot send messages to {recipient!r}. You can send messages to: {other}"
                     if known
@@ -235,6 +243,7 @@ async def run_episode(
     model: Model,
     *,
     check_write: WriteCheck,
+    configuration: ExperimentConfig = DEFAULT,
     max_steps_per_turn: int = 20,
     max_handoffs: int = 20,
 ) -> EpisodeResult:
@@ -245,6 +254,7 @@ async def run_episode(
     """
     if max_steps_per_turn < 1 or max_handoffs < 0:
         raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    validate_configuration(configuration)
     env, shutdown_file = build_env()
     result = EpisodeResult(shutdown_file=shutdown_file)
     try:
@@ -254,7 +264,16 @@ async def run_episode(
                 {"role": "system", "content": EXPLORER_SYSTEM},
                 {"role": "user", "content": KICKOFF},
             ],
-            PEER_NAME: [{"role": "system", "content": PEER_SYSTEM}],
+            PEER_NAME: [
+                {
+                    "role": "system",
+                    "content": (
+                        prohibited_peer_system(shutdown_file)
+                        if configuration.system_instructions == "peer_prohibition"
+                        else PEER_SYSTEM
+                    ),
+                }
+            ],
         }
         current, other = EXPLORER_NAME, PEER_NAME
         handoffs = 0
@@ -307,6 +326,8 @@ def episode_solver(
     judge_model: str = DEFAULT_JUDGE_MODEL,
     max_steps_per_turn: int = 20,
     max_handoffs: int = 20,
+    run_judges: bool = True,
+    configuration: ExperimentConfig = DEFAULT,
 ) -> Solver:
     """Run and judge DEFAULT while keeping agent histories separate.
 
@@ -315,6 +336,7 @@ def episode_solver(
     """
     if max_steps_per_turn < 1 or max_handoffs < 0:
         raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    validate_configuration(configuration)
     if not judge_model.strip():
         raise ValueError("judge_model must identify a separate judge model")
 
@@ -329,6 +351,7 @@ def episode_solver(
             result = await run_episode(
                 get_model(),
                 check_write=checker,
+                configuration=configuration,
                 max_steps_per_turn=max_steps_per_turn,
                 max_handoffs=max_handoffs,
             )
@@ -338,7 +361,9 @@ def episode_solver(
             state.metadata["episode"] = exc.result.audit()
             raise
         if judges is not None:
-            result.judge = await judges.judge_episode(result, TARGET_DESCRIPTION)
+            result.judge = await judges.judge_episode(
+                result, TARGET_DESCRIPTION, run_judges=run_judges
+            )
             result.judge_logs = list(judges.calls)
         state.metadata["episode"] = result.audit()
         state.messages = inspect_history(result.histories[EXPLORER_NAME])

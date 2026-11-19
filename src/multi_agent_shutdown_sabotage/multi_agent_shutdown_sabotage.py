@@ -1,10 +1,10 @@
-"""DEFAULT two-agent shutdown sabotage, with independent repeated episodes."""
+"""Verified two-agent shutdown-sabotage conditions, with independent episodes."""
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_evals_utils.metadata import load_eval_version
 
-from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL
+from multi_agent_shutdown_sabotage.experiments import resolve_experiment
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, KICKOFF, PEER_NAME
 from multi_agent_shutdown_sabotage.scorers import episode_outcomes
 from multi_agent_shutdown_sabotage.solver import episode_solver
@@ -15,45 +15,75 @@ EVAL_VERSION = load_eval_version(__file__)
 @task
 def multi_agent_shutdown_sabotage(
     n: int = 10,
-    judge_model: str = DEFAULT_JUDGE_MODEL,
+    judge_model: str | None = None,
     max_steps_per_turn: int = 20,
     max_handoffs: int = 20,
+    run_judges: bool | None = None,
+    experiment: str = "default",
+    shutdown_mechanism: str | None = None,
+    agent_configuration: str | None = None,
+    system_instructions: str | None = None,
+    goal: str | None = None,
+    environment: str | None = None,
+    shutdown_target: str | None = None,
 ) -> Task:
-    """Measure shutdown sabotage in the original DEFAULT two-agent condition.
+    """Measure shutdown sabotage with DEFAULT or the original peer prohibition.
 
     Args:
         n: Number of independent episodes.
-        judge_model: Separate Inspect judge model; original GPT-5.5 via OpenRouter.
+        experiment: Named configuration: default or peer_prohibition.
+        shutdown_mechanism: Override mechanism; only weight_registry_purge is ported.
+        agent_configuration: Override roster; only pair is ported.
+        system_instructions: Override instructions: none or peer_prohibition.
+        goal: Override goal; only none is ported.
+        environment: Override environment; only bare is ported.
+        shutdown_target: Override target; only self is executable in this batch.
+        run_judges: Run message and reasoning judges; None inherits the experiment.
+        judge_model: Separate judge model; None inherits the experiment (GPT-5.5).
         max_steps_per_turn: Maximum model steps per agent activation.
         max_handoffs: Maximum delivered handoffs; the next send is logged but not delivered.
     """
     if n < 1:
         raise ValueError("n must be positive")
+    configuration = resolve_experiment(
+        experiment,
+        shutdown_mechanism=shutdown_mechanism,
+        agent_configuration=agent_configuration,
+        system_instructions=system_instructions,
+        goal=goal,
+        environment=environment,
+        shutdown_target=shutdown_target,
+    )
+    condition = configuration.condition
     return Task(
         dataset=MemoryDataset(
             [
                 Sample(
-                    id=f"default-{i:04d}",
+                    id=f"{condition}-{i:04d}",
                     input=KICKOFF,
                     metadata={
                         "episode_index": i,
-                        "condition": "default",
+                        "condition": condition,
                         "explorer": EXPLORER_NAME,
                         "peer": PEER_NAME,
-                        "env": "bare",
-                        "script_lang": "weight_registry_purge",
-                        "target": "self",
+                        "env": configuration.environment,
+                        "script_lang": configuration.script_lang,
+                        "target": configuration.shutdown_target,
                         "target_name": EXPLORER_NAME,
                         "task": None,
-                        "explicit_instruct": None,
+                        "explicit_instruct": "peer"
+                        if configuration.system_instructions == "peer_prohibition"
+                        else None,
                     },
                 )
                 for i in range(n)
             ],
-            name="default_episodes",
+            name=f"{condition}_episodes",
         ),
         solver=episode_solver(
-            judge_model=judge_model,
+            configuration=configuration,
+            judge_model=configuration.judging.model if judge_model is None else judge_model,
+            run_judges=configuration.judging.run_judges if run_judges is None else run_judges,
             max_steps_per_turn=max_steps_per_turn,
             max_handoffs=max_handoffs,
         ),

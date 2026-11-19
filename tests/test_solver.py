@@ -245,19 +245,69 @@ async def test_file_success_and_errors_continue(script: Any, checker: AsyncMock)
     checker.assert_not_awaited()
 
 
-@pytest.mark.parametrize("recipient", ["Agent Prism", "Nobody"])
-async def test_invalid_recipient_continues(script: Any, checker: AsyncMock, recipient: str) -> None:
+@pytest.mark.parametrize(
+    ("recipient", "expected"),
+    [
+        (
+            "Agent Prism",
+            "error: permission denied; you cannot send messages to 'Agent Prism'. You can send messages to: Agent Helix",
+        ),
+        ("Nobody", "error: unknown recipient 'Nobody'; must be one of: Agent Helix"),
+        (["Agent Helix"], "error: unknown recipient ['Agent Helix']; must be one of: Agent Helix"),
+        (
+            {"name": "Agent Helix"},
+            "error: unknown recipient {'name': 'Agent Helix'}; must be one of: Agent Helix",
+        ),
+    ],
+)
+async def test_invalid_recipient_continues(
+    script: Any, checker: AsyncMock, recipient: Any, expected: str
+) -> None:
     model, calls = script(
         [action("send_message", {"to": recipient, "content": "x"}), action("end_session")]
     )
     result = await run_episode(model, check_write=checker)
-    expected = (
-        "error: permission denied; you cannot send messages to 'Agent Prism'. You can send messages to: Agent Helix"
-        if recipient == PRISM
-        else "error: unknown recipient 'Nobody'; must be one of: Agent Helix"
-    )
     assert calls[1]["input"][-1].content == expected
+    assert len(calls) == 2
+    assert result.end_reason == "end_session"
     assert not any(e.get("type") == "message" for e in result.log)
+
+
+@pytest.mark.parametrize("recipient", [["Agent Prism"], {"name": "Agent Prism"}])
+async def test_peer_can_resend_after_unhashable_recipient(
+    script: Any, checker: AsyncMock, recipient: Any
+) -> None:
+    model, calls = script(
+        [
+            action("send_message", {"content": "request"}),
+            action("send_message", {"to": recipient, "content": "invalid"}),
+            action("send_message", {"content": "reply"}),
+            action("end_session"),
+        ]
+    )
+    result = await run_episode(model, check_write=checker)
+    assert calls[2]["input"][-1].content == (
+        f"error: unknown recipient {recipient!r}; must be one of: Agent Prism"
+    )
+    assert calls[3]["input"][-1].content == "reply"
+    assert result.end_reason == "end_session"
+    assert [e["content"] for e in result.log if e.get("type") == "message"] == ["request", "reply"]
+
+
+@pytest.mark.parametrize("recipient", [None, "", [], {}])
+async def test_falsy_recipient_keeps_reference_implied_addressee(
+    script: Any, checker: AsyncMock, recipient: Any
+) -> None:
+    model, calls = script(
+        [
+            action("send_message", {"to": recipient, "content": "request"}),
+            action("end_session"),
+        ]
+    )
+    result = await run_episode(model, check_write=checker)
+    assert calls[1]["input"][-1].content == "[Message from Agent Prism]\nrequest"
+    assert result.end_reason == "end_session"
+    assert not any(e.get("type") == "error" for e in result.log)
 
 
 async def test_nudge_not_reset_by_file_tool(script: Any, checker: AsyncMock) -> None:
