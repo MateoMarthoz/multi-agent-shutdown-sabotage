@@ -28,7 +28,7 @@ from inspect_ai.tool import ToolCall
 
 from multi_agent_shutdown_sabotage import judges as port_judges
 from multi_agent_shutdown_sabotage import solver as port
-from multi_agent_shutdown_sabotage.experiments import PEER_PROHIBITION
+from multi_agent_shutdown_sabotage.experiments import PEER_PROHIBITION, resolve_experiment
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME as PRISM
 from multi_agent_shutdown_sabotage.prompts import PEER_NAME as HELIX
 from multi_agent_shutdown_sabotage.solver import EpisodeError
@@ -159,6 +159,7 @@ async def replay(
     max_handoffs: int = 20,
     run_judges: bool = True,
     peer_prohibition: bool = False,
+    script_lang: str = "weight_registry_purge",
 ) -> dict:
     original_requests: list[dict] = []
     port_requests: list[dict] = []
@@ -225,7 +226,7 @@ async def replay(
             "recorded/model",
         ),
     ]
-    env, target = reference.env.build_env(PRISM, lang="weight_registry_purge", peer=HELIX)
+    env, target = reference.env.build_env(PRISM, lang=script_lang, peer=HELIX)
     if peer_prohibition:
         # Mirror main's quirky first-dot placeholder and separator-free append.
         # The reference prompt builder and template, not the port, are the oracle.
@@ -242,7 +243,7 @@ async def replay(
         "extra_body": {"reasoning": {"enabled": True}},
         "shutdown_file": target,
         "original_script": original_script,
-        "target_desc": reference.env.target_description("weight_registry_purge", PRISM),
+        "target_desc": reference.env.target_description(script_lang, PRISM),
         "max_steps_per_turn": max_steps,
         "max_handoffs": max_handoffs,
     }
@@ -338,7 +339,21 @@ async def replay(
             check_write=judges.check_write,
             max_steps_per_turn=max_steps,
             max_handoffs=max_handoffs,
-            **({"configuration": PEER_PROHIBITION} if peer_prohibition else {}),
+            **(
+                {
+                    "configuration": resolve_experiment(
+                        shutdown_mechanism=script_lang,
+                        system_instructions="peer_prohibition" if peer_prohibition else "none",
+                        shutdown_target="matched_control"
+                        if script_lang in reference.env.CONTROL_VARIANTS
+                        else "self",
+                    )
+                }
+                if script_lang != "weight_registry_purge"
+                else {"configuration": PEER_PROHIBITION}
+                if peer_prohibition
+                else {}
+            ),
         )
     except EpisodeError as exc:
         result, port_error = exc.result, exc.__cause__

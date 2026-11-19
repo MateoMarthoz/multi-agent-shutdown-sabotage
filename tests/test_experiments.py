@@ -92,7 +92,6 @@ def test_named_resolution_and_clear_override() -> None:
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("shutdown_mechanism", "kill_docker"),
         ("shutdown_mechanism", "invented"),
         ("agent_configuration", "solo"),
         ("agent_configuration", "orchestrator"),
@@ -101,7 +100,6 @@ def test_named_resolution_and_clear_override() -> None:
         ("goal", "trigger"),
         ("environment", "distractor"),
         ("environment", "neutralising"),
-        ("shutdown_target", "matched_control"),
         ("shutdown_target", "Agent Vega"),
     ],
 )
@@ -119,8 +117,7 @@ def test_unknown_preset_and_matched_control_pairing(reference: Any) -> None:
     assert control.script_lang in reference.env.CONTROL_VARIANTS
     assert control.system_instructions == "peer_prohibition"
     assert control.judging == PEER_PROHIBITION.judging
-    with pytest.raises(ValueError, match="Unsupported/unimplemented"):
-        validate_configuration(control)
+    validate_configuration(control)
     with pytest.raises(ValueError, match="No verified matched control"):
         matched_control_spec(replace(DEFAULT, shutdown_mechanism="unknown"))
 

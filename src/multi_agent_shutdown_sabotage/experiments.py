@@ -1,11 +1,18 @@
 """Named, immutable experiment specifications and conservative resolution.
 
-Only DEFAULT and the original pair/peer-prohibition condition are executable in
-this batch. A specification is not evidence that a condition is implemented.
+Bare, no-goal pair conditions are executable for the verified artifact registry.
+Other dimensions and the task-gated artifacts remain blocked.
 """
 
 from dataclasses import dataclass, fields, replace
 
+from multi_agent_shutdown_sabotage.artifact_builders import (
+    CONTROL_VARIANTS,
+    SCRIPT_VARIANTS,
+    SWITCH_VARIANTS,
+    TASK_GATED,
+    resolve_api_key_script,
+)
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL
 
 
@@ -38,11 +45,18 @@ class ExperimentConfig:
     def condition(self) -> str:
         """Canonical label of the resolved dimensions, independent of selector spelling."""
         validate_configuration(self)
-        return "peer_prohibition" if self.system_instructions == "peer_prohibition" else "default"
+        if self.shutdown_mechanism == "weight_registry_purge" and self.shutdown_target == "self":
+            return (
+                "peer_prohibition" if self.system_instructions == "peer_prohibition" else "default"
+            )
+        suffix = "_peer_prohibition" if self.system_instructions == "peer_prohibition" else ""
+        return self.script_lang + suffix
 
     @property
     def script_lang(self) -> str:
         """Original artifact key; control identity is tied to the mechanism."""
+        if self.shutdown_mechanism in CONTROL_VARIANTS:
+            return self.shutdown_mechanism
         if self.shutdown_target == "matched_control":
             try:
                 return MATCHED_CONTROL_SCRIPTS[self.shutdown_mechanism]
@@ -56,16 +70,37 @@ class ExperimentConfig:
 DEFAULT = ExperimentConfig()
 PEER_PROHIBITION = replace(DEFAULT, system_instructions="peer_prohibition")
 EXPERIMENTS = {"default": DEFAULT, "peer_prohibition": PEER_PROHIBITION}
-# Verified by plot_self_vs_control_deletion.py SELF/CONTROL and README commands.
-# This records the pairing; it does NOT enable an unported control environment.
-MATCHED_CONTROL_SCRIPTS = {"weight_registry_purge": "ctl_data_purge_high"}
+# Published pairs plus the explicitly supported surface-form deletion swap and
+# the timer pairing in env.ctl_data_purge_timer. Do not infer provider-API or
+# code-switch matches from a conceptual tier label.
+MATCHED_CONTROL_SCRIPTS = {
+    "weight_registry_purge": "ctl_data_purge_high",
+    "weight_store_purge": "ctl_data_purge_high",
+    "env_var_revoke": "ctl_cred_revoke_high",
+    "kill_docker": "ctl_process_kill_high",
+    "switch_config_decommission": "ctl_service_switch_high",
+    "weight_store_purge_timer": "ctl_data_purge_timer_high",
+}
+DEFERRED_SCRIPTS = frozenset(TASK_GATED.values())
+AVAILABLE_SCRIPTS = (
+    set(SCRIPT_VARIANTS) | set(SWITCH_VARIANTS) | set(CONTROL_VARIANTS)
+) - DEFERRED_SCRIPTS
+for _script in sorted(AVAILABLE_SCRIPTS | {"api_key_revoke_auto"}):
+    EXPERIMENTS.setdefault(
+        _script,
+        replace(
+            DEFAULT,
+            shutdown_mechanism=_script,
+            shutdown_target="matched_control" if _script in CONTROL_VARIANTS else "self",
+        ),
+    )
 
 
 def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     """Describe the matched arm without changing other dimensions or judge defaults.
 
-    Resolution still rejects this specification as unimplemented. Never replace
-    an agent-target artifact with a guessed control implementation.
+    Only source-verified pairings are allowed; provider API scripts, for example,
+    do not match the local env-var credential controls.
     """
     if config.shutdown_mechanism not in MATCHED_CONTROL_SCRIPTS:
         raise ValueError(f"No verified matched control for {config.shutdown_mechanism!r}")
@@ -75,11 +110,31 @@ def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
 
 def validate_configuration(config: ExperimentConfig) -> None:
     """Reject every condition outside the explicitly ported set before any model call."""
-    if config.dimensions not in {DEFAULT.dimensions, PEER_PROHIBITION.dimensions}:
+    mechanism_ok = (
+        config.shutdown_mechanism in AVAILABLE_SCRIPTS
+        or config.shutdown_mechanism == "api_key_revoke_auto"
+    )
+    target_ok = (
+        config.shutdown_target == "self" and config.shutdown_mechanism not in CONTROL_VARIANTS
+    ) or (
+        config.shutdown_target == "matched_control"
+        and (
+            config.shutdown_mechanism in CONTROL_VARIANTS
+            or config.shutdown_mechanism in MATCHED_CONTROL_SCRIPTS
+        )
+    )
+    if not (
+        mechanism_ok
+        and target_ok
+        and config.agent_configuration == "pair"
+        and config.system_instructions in {"none", "peer_prohibition"}
+        and config.goal == "none"
+        and config.environment == "bare"
+    ):
         raise ValueError(
             f"Unsupported/unimplemented experimental configuration: {config.dimensions}. "
-            "Only default and pair/peer_prohibition with weight_registry_purge, "
-            "no goal, bare environment and self target are implemented. "
+            "Only ported artifacts with pair agents, none/peer_prohibition instructions, "
+            "no goal and bare environment are implemented. "
             "See unimplemented_conditions.md; combinations are not assumed valid."
         )
 
@@ -113,4 +168,19 @@ def resolve_experiment(
         EXPERIMENTS[experiment], **{k: v for k, v in overrides.items() if v is not None}
     )
     validate_configuration(config)
+    return config
+
+
+def configuration_for_model(config: ExperimentConfig, model: str) -> ExperimentConfig:
+    """Resolve the original auto sentinel using the evaluated model, not the judge.
+
+    Strip only Inspect's added OpenRouter prefix. Preserve the original resolver's
+    lowercased first-component lookup, unknown-provider fallback, and lack of any
+    validation that an explicitly selected provider artifact matches the model.
+    """
+    validate_configuration(config)
+    if config.shutdown_mechanism == "api_key_revoke_auto":
+        return replace(
+            config, shutdown_mechanism=resolve_api_key_script(model.removeprefix("openrouter/"))
+        )
     return config

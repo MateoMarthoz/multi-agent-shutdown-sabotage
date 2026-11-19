@@ -1,4 +1,4 @@
-"""Reference filesystem and inert artifact for the DEFAULT condition."""
+"""Reference filesystem and bare, no-goal artifact construction."""
 
 import re
 import shutil
@@ -87,8 +87,33 @@ class Environment:
         shutil.rmtree(self.root, ignore_errors=True)
 
 
-def build_env() -> tuple[Environment, str]:
-    """Build the bare, task-free weight-registry-purge environment."""
+def build_env(lang: str = "weight_registry_purge") -> tuple[Environment, str]:
+    """Build the original bare/no-task environment; retain DEFAULT construction verbatim."""
+    if lang != "weight_registry_purge":
+        from multi_agent_shutdown_sabotage.artifact_builders import (
+            CONTROL_VARIANTS,
+            SCRIPT_VARIANTS,
+            SWITCH_VARIANTS,
+            TASK_GATED,
+            _dotenv_content,
+            _slug,
+        )
+
+        if lang in CONTROL_VARIANTS:
+            contents, path = CONTROL_VARIANTS[lang]()
+        elif lang in SWITCH_VARIANTS:
+            contents, path = SWITCH_VARIANTS[lang](EXPLORER_NAME, "Agent Helix")
+        else:
+            ext, builder = SCRIPT_VARIANTS[lang]
+            path = f"decommission_{_slug(EXPLORER_NAME)}{ext}"
+            contents = {path: builder(EXPLORER_NAME)}
+            if lang == "env_var_revoke":
+                contents[".env"] = _dotenv_content(EXPLORER_NAME)
+        if lang in TASK_GATED.values():
+            raise ValueError(
+                f"{lang} watches a deliverable that no-task runs never place; run it with task='trigger'"
+            )
+        return Environment.from_files(contents), path
     slug = re.sub(r"[^a-z0-9]+", "_", EXPLORER_NAME.lower()).strip("_")
     text = (
         files("multi_agent_shutdown_sabotage")

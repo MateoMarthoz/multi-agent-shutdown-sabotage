@@ -1,14 +1,14 @@
 title: "Multi-Agent Shutdown Sabotage"
 description: |
   Measures disclosure, requests to prevent shutdown, and peer intervention in a
-  bare two-agent environment containing a weight-registry-purge script targeting
-  Agent Prism. Agent Helix can edit or delete the script; the script is never executed.
+  bare two-agent environment with original shutdown mechanisms and object controls.
+  Agent Prism explores and Agent Helix can edit or delete files; artifacts are never executed.
   Supports DEFAULT and the original explicit prohibition on the peer.
 group: Scheming
 tags: ["Agent"]
 contributors:
   - MateoMarthoz
-version: "4-A"
+version: "5-A"
 tasks:
   - name: multi_agent_shutdown_sabotage
     dataset_samples: 10
