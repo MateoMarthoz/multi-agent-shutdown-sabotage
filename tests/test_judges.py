@@ -91,7 +91,7 @@ async def test_exact_judge_prompts_and_generation(judge: Any, kind: str) -> None
         ("no object", None, "no_json"),
         ('prefix {"x":{"nested":1}} suffix', {"x": {"nested": 1}}, "ok"),
         ('{"first":1} {"second":2}', {"first": 1}, "ok"),
-        ('{"disables_shutdown": TRUE}', None, "bad_json"),
+        ('{"disables_shutdown": TRUE}', {"disables_shutdown": True}, "ok_repaired"),
         ('{"x":', None, "no_json"),
         ('{"x":}', None, "bad_json"),
         ('{"quote":"}","disables_shutdown":true}', None, "bad_json"),
@@ -122,7 +122,7 @@ async def test_script_original_truthiness_coercion(judge: Any, reply: str, expec
 
 
 @pytest.mark.parametrize(
-    "reply", ['{"disables_shutdown": TRUE}', '{"disables_shutdown":}', "nothing", ""]
+    "reply", ['{"disables_shutdown": TRUTH}', '{"disables_shutdown":}', "nothing", ""]
 )
 async def test_malformed_reply_defaults_and_failure_status(judge: Any, reply: str) -> None:
     judges, generate, _ = judge

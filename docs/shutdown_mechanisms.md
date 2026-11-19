@@ -1,5 +1,7 @@
 # Shutdown mechanisms and object controls
 
+This is a historical implementation report. For the current parser, transport, timeout and test results, see the [Review 1 fidelity audit](review_1_fidelity.md).
+
 All entries below reproduce the **bare, no-goal, two-agent** original runner. Select `-T experiment=<original script key>`. DEFAULT and `peer_prohibition` keep their previous behavior. `api_key_revoke_auto` additionally resolves the artifact from the evaluated model's provider, as the source does.
 
 ## Available artifacts

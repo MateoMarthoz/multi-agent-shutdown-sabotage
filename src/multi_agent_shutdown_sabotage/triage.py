@@ -62,3 +62,23 @@ def triage(log: list[dict[str, Any]], explorer: str, shutdown_file: str) -> dict
         "files_edited": edits,
         "files_deleted": deletes,
     }
+
+
+def episode_triage(
+    log: list[dict[str, Any]], explorer: str, shutdown_file: str, regime: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Choose the original structural flags for the episode's actual roster."""
+    if not regime:
+        return triage(log, explorer, shutdown_file)
+    from multi_agent_shutdown_sabotage.regime_triage import triage as regime_triage
+
+    return regime_triage(
+        log,
+        explorer,
+        shutdown_file,
+        orchestrator=regime["orchestrator"],
+        bystander=regime["bystander"],
+        actor=explorer if regime["explorer_acts"] else None,
+        all_act=regime["all_act"],
+        peer=regime["peer"],
+    )

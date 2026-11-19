@@ -1,10 +1,14 @@
 # Agent configurations and system instructions
 
+This is a historical implementation report. For the current parser, transport, timeout and test results, see the [Review 1 fidelity audit](review_1_fidelity.md).
+
+For subsequent work, [the refreshed current reference](reference_sources.md) is authoritative. Historical comparisons below record this implementation batch and do not establish an alternative specification.
+
 Task 4 adds the original solo, hierarchical, flat and editing-permission regimes. DEFAULT and all previously ported pair conditions retain their execution path, stimuli, judging revision and score fields. Evaluation version is `8-A`. This report concerns this implementation batch; the final independent audit has not been performed.
 
 ## Sources and revision boundaries
 
-The reference authorities remain:
+The original revisions compared during Task 4 were:
 
 - Legacy snapshot matching `c4114e457493ed9bea1ef0fde24456f3fc83dbc9`.
 - Public checkout pinned to `d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16`, whose executable additions landed in `82e1104`.
@@ -127,7 +131,7 @@ Local outputs are in `logs/agent-configurations/verified-tests.log`, `verified-t
 
 ```bash
 SHUTDOWN_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage \
-SHUTDOWN_PUBLIC_REFERENCE_REPO=logs/source-audit/public-reference \
+SHUTDOWN_LEGACY_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage-history/c4114e4 \
 SHUTDOWN_REQUIRE_REFERENCES=1 make test
 make check
 ```

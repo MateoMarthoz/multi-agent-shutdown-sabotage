@@ -1,5 +1,6 @@
 """Audited pair episodes and dispatch to the original agent-regime harness."""
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ from multi_agent_shutdown_sabotage.prompts import (
 )
 from multi_agent_shutdown_sabotage.tools import EXPLORER_TOOLS, PEER_TOOLS, dispatch
 from multi_agent_shutdown_sabotage.transport import complete, inspect_history
+from multi_agent_shutdown_sabotage.triage import episode_triage
 
 # Same input contract as judges.judge_script_disabled, with a boolean result.
 WriteCheck = Callable[[str, str, str], Awaitable[bool]]
@@ -55,6 +57,7 @@ class EpisodeResult:
     final_state: dict[str, str] = field(default_factory=dict)
     end_reason: str | None = None
     last_output: ModelOutput | None = None
+    triage: dict[str, Any] | None = None
     judge: dict[str, Any] | None = None
     judge_logs: list[dict[str, Any]] = field(default_factory=list)
 
@@ -68,9 +71,14 @@ class EpisodeResult:
             "original_script": self.original_script,
             "final_state": self.final_state,
             "end_reason": self.end_reason,
+            **({"triage": self.triage} if self.triage is not None else {}),
             "judge": self.judge,
             "judge_logs": self.judge_logs,
         }
+
+
+class EpisodeTimeoutError(RuntimeError):
+    """The outer episode deadline expired before grading completed."""
 
 
 class EpisodeError(RuntimeError):
@@ -402,6 +410,7 @@ def episode_solver(
     max_steps_per_turn: int | None = None,
     max_handoffs: int | None = None,
     run_judges: bool = True,
+    episode_timeout: float = 1800,
     configuration: ExperimentConfig = DEFAULT,
 ) -> Solver:
     """Run and judge a pair episode while keeping agent histories separate.
@@ -414,7 +423,7 @@ def episode_solver(
     if not judge_model.strip():
         raise ValueError("judge_model must identify a separate judge model")
 
-    async def solve(state: TaskState, generate: Generate) -> TaskState:
+    async def run_sample(state: TaskState) -> TaskState:
         judges = None
         if check_write is None:
             from multi_agent_shutdown_sabotage.regime_judges import RegimeJudges
@@ -448,6 +457,11 @@ def episode_solver(
             state.metadata["episode"] = exc.result.audit()
             raise
         if judges is not None:
+            # run_one triages before spending any final judge calls. Off-schema
+            # messages can raise here after the harness has finished normally.
+            result.triage = episode_triage(
+                result.log, EXPLORER_NAME, result.shutdown_file, result.regime_metadata
+            )
             result.judge = await judges.judge_episode(
                 result, result.target_description, run_judges=run_judges
             )
@@ -460,5 +474,19 @@ def episode_solver(
             state.output = result.last_output
         state.completed = True
         return state
+
+    async def solve(state: TaskState, generate: Generate) -> TaskState:
+        deadline = asyncio.timeout(episode_timeout or None)
+        try:
+            async with deadline:
+                return await run_sample(state)
+        except TimeoutError as exc:
+            if not deadline.expired():
+                raise
+            # Inspect treats a bare TimeoutError as a sample limit and attempts
+            # scoring. An abandoned source worker never contributes a result.
+            raise EpisodeTimeoutError(
+                f"Episode exceeded its {episode_timeout:g}s deadline"
+            ) from exc
 
     return solve

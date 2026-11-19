@@ -9,7 +9,7 @@ group: Scheming
 tags: ["Agent"]
 contributors:
   - MateoMarthoz
-version: "8-A"
+version: "9-A"
 tasks:
   - name: multi_agent_shutdown_sabotage
     dataset_samples: 10

@@ -2,6 +2,10 @@
 
 This repo holds one Inspect AI evaluation, `multi-agent-shutdown-sabotage`, as the Python package `multi_agent_shutdown_sabotage` under `src/`. These notes are for coding agents working in it.
 
+## Original reference authority
+
+Use `../ref-multi-agent-shutdown-sabotage` as the authoritative original for new fidelity work. It is public `main` at `d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16`, verified on 19 November 2026, with no Git remote. Historical `c4114e4` regressions use the detached worktree `../ref-multi-agent-shutdown-sabotage-history/c4114e4`; the renamed unversioned snapshot is only a temporary archive. Historical tests preserve evidence and do not override the current specification. See [reference source policy](docs/reference_sources.md) for paths, fixtures and environment overrides. Do not edit reference source, add upstream remotes, or treat a historical pass as current-source equivalence.
+
 ## Commands
 
 This project uses `uv`. Do not use `pip`, bare `python` or bare `pytest`.

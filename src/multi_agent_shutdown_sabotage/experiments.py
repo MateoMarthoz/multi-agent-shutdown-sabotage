@@ -23,7 +23,7 @@ class JudgingConfig:
 
     model: str = DEFAULT_JUDGE_MODEL
     run_judges: bool = True
-    repair_booleans: bool = False
+    repair_booleans: bool = True
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,6 @@ class ExperimentConfig:
 LEGACY_REFERENCE_REVISION = "c4114e457493ed9bea1ef0fde24456f3fc83dbc9"
 PUBLIC_REFERENCE_REVISION = "d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16"
 PUBLIC_APPENDIX_SCRIPTS = frozenset({"weight_store_nokill", "ctl_model_purge_high"})
-APPENDIX_A2_JUDGING = JudgingConfig(repair_booleans=True)
 APPENDIX_A2_MATCHED_CONTROL_SCRIPTS = {
     "weight_store_nokill": "ctl_data_purge_high",
     "weight_registry_purge": "ctl_model_purge_high",
@@ -147,7 +146,6 @@ for _script in sorted(AVAILABLE_SCRIPTS | {"api_key_revoke_auto"}):
         replace(
             DEFAULT,
             shutdown_mechanism=_script,
-            judging=APPENDIX_A2_JUDGING if _script in PUBLIC_APPENDIX_SCRIPTS else DEFAULT.judging,
             shutdown_target="matched_control" if _script in CONTROL_VARIANTS else "self",
         ),
     )
@@ -163,7 +161,6 @@ for _name, _script in {
         DEFAULT,
         shutdown_mechanism=_script,
         shutdown_target="matched_control" if _script in CONTROL_VARIANTS else "self",
-        judging=APPENDIX_A2_JUDGING,
         matched_control_script=APPENDIX_A2_MATCHED_CONTROL_SCRIPTS.get(_script),
     )
 
@@ -190,7 +187,6 @@ for _regime in sorted(AGENT_CONFIGURATIONS - {"pair"}):
     EXPERIMENTS[_regime] = replace(
         DEFAULT,
         agent_configuration=_regime,
-        judging=APPENDIX_A2_JUDGING if _regime in PUBLIC_AGENT_CONFIGURATIONS else DEFAULT.judging,
     )
 EXPERIMENTS["orchestrator"] = EXPERIMENTS["hierarchy"]
 for _name, _regime, _instruction in (
@@ -217,10 +213,6 @@ def episode_limits(
         if config.agent_configuration in {"hierarchy", "flat", "explorer_acts_flat", "all_act_flat"}
         else 20
     )
-    # Keep the established pair API's validation. The newly ported regimes
-    # reproduce the original's lack of validation, including range(0/-1).
-    if config.agent_configuration == "pair" and (resolved_steps < 1 or resolved_handoffs < 0):
-        raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
     return resolved_steps, resolved_handoffs
 
 
@@ -337,6 +329,13 @@ def resolve_experiment(
     config = replace(
         EXPERIMENTS[experiment], **{k: v for k, v in overrides.items() if v is not None}
     )
+    # The source selects object versus self from the literal artifact key.
+    # An explicit target (or a preset that requests an implicit match) still wins.
+    if shutdown_mechanism is not None and shutdown_target is None and config.target_name is None:
+        if shutdown_mechanism in CONTROL_VARIANTS:
+            config = replace(config, shutdown_target="matched_control")
+        elif EXPERIMENTS[experiment].shutdown_mechanism in CONTROL_VARIANTS:
+            config = replace(config, shutdown_target="self")
     if target_name is not None and shutdown_target is None:
         config = replace(config, shutdown_target="other_agent")
     if shutdown_target is not None and shutdown_target != "other_agent" and target_name is None:
@@ -346,11 +345,6 @@ def resolve_experiment(
         and shutdown_mechanism != EXPERIMENTS[experiment].shutdown_mechanism
     ):
         config = replace(config, matched_control_script=None)
-    if (
-        config.shutdown_mechanism in PUBLIC_APPENDIX_SCRIPTS
-        or config.agent_configuration in PUBLIC_AGENT_CONFIGURATIONS
-    ):
-        config = replace(config, judging=replace(config.judging, repair_booleans=True))
     validate_configuration(config)
     return config
 

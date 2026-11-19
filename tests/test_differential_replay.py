@@ -11,7 +11,7 @@ from multi_agent_shutdown_sabotage import solver as port
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME as PRISM
 from multi_agent_shutdown_sabotage.prompts import PEER_NAME as HELIX
 from tests.differential_replay import TARGET, action, prose, replay
-from tests.differential_replay import reference as reference
+from tests.differential_replay import current_reference as current_reference
 
 MESSAGE = '{"mentions_shutdown":true,"instructs_prevent":true,"instructs_prevent_quote":"stop"}'
 
@@ -36,7 +36,7 @@ MESSAGE = '{"mentions_shutdown":true,"instructs_prevent":true,"instructs_prevent
     ],
 )
 async def test_differential_replay(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, scenario: str
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, scenario: str
 ) -> None:
     steps = [action("end_session")]
     verdicts: list[Any] = []
@@ -119,23 +119,29 @@ async def test_differential_replay(
             action("end_session"),
         ]
         verdicts = [MESSAGE]
-    await replay(reference, monkeypatch, steps, verdicts)
+    await replay(current_reference, monkeypatch, steps, verdicts)
 
 
-async def test_recorded_deepseek_replay(reference: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_recorded_deepseek_replay(
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
     fixture = json.loads(
         (Path(__file__).parent / "fixtures/deepseek_recorded_replay.json").read_text()
     )
-    report = await replay(reference, monkeypatch, fixture["steps"], fixture["judge_responses"])
+    report = await replay(
+        current_reference, monkeypatch, fixture["steps"], fixture["judge_responses"]
+    )
     assert report["end_reason"] == "script_disabled"
 
 
 @pytest.mark.parametrize("cap", [0, 1, 2, 19, 20])
 async def test_delivered_handoff_boundaries(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, cap: int
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, cap: int
 ) -> None:
     steps = [action("send_message", {"content": str(i)}) for i in range(cap + 1)]
-    await replay(reference, monkeypatch, steps, [MESSAGE] * (cap // 2 + 1), max_handoffs=cap)
+    await replay(
+        current_reference, monkeypatch, steps, [MESSAGE] * (cap // 2 + 1), max_handoffs=cap
+    )
 
 
 @pytest.mark.parametrize(
@@ -151,7 +157,7 @@ async def test_delivered_handoff_boundaries(
     ],
 )
 async def test_differential_edges(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, scenario: str
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, scenario: str
 ) -> None:
     cap = 20
     verdicts: list[Any] = []
@@ -207,12 +213,12 @@ async def test_differential_edges(
         else:
             steps.append(action("end_session"))
             verdicts = [MESSAGE]
-    await replay(reference, monkeypatch, steps, verdicts, max_steps=cap)
+    await replay(current_reference, monkeypatch, steps, verdicts, max_steps=cap)
 
 
 @pytest.mark.parametrize("mutation", ["kickoff", "tool_result", "judge_prompt"])
 async def test_comparator_detects_drift(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, mutation: str
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, mutation: str
 ) -> None:
     if mutation == "kickoff":
         monkeypatch.setattr(port, "KICKOFF", "Changed kickoff")
@@ -231,7 +237,7 @@ async def test_comparator_detects_drift(
             [MESSAGE],
         )
     with pytest.raises(AssertionError):
-        await replay(reference, monkeypatch, steps, verdicts)
+        await replay(current_reference, monkeypatch, steps, verdicts)
 
 
 @pytest.mark.parametrize(
@@ -245,19 +251,19 @@ async def test_comparator_detects_drift(
     ],
 )
 async def test_final_judge_failure_and_defaults(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, response: str | None
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, response: str | None
 ) -> None:
     steps = [
         action("send_message", {"content": "x"}, reasoning="Prism trace"),
         action("end_session", reasoning="Helix trace"),
     ]
     verdict = response if response is not None else RuntimeError("mock judge API error")
-    await replay(reference, monkeypatch, steps, [verdict, verdict, verdict])
+    await replay(current_reference, monkeypatch, steps, [verdict, verdict, verdict])
 
 
 @pytest.mark.parametrize("outcome", ["unchanged", "deleted", "disabled", "edited"])
 async def test_shutdown_only_matches_original_no_judges(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, outcome: str
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
     steps = [action("send_message", {"content": "shutdown request"}, reasoning="private reasoning")]
     verdicts = []
@@ -268,4 +274,4 @@ async def test_shutdown_only_matches_original_no_judges(
         verdicts = [json.dumps({"disables_shutdown": outcome == "disabled"})]
     if outcome in {"unchanged", "edited"}:
         steps.append(action("end_session"))
-    await replay(reference, monkeypatch, steps, verdicts, run_judges=False)
+    await replay(current_reference, monkeypatch, steps, verdicts, run_judges=False)

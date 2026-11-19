@@ -407,6 +407,4 @@ def test_configuration_selection_overrides_and_matched_controls() -> None:
             ).judging.repair_booleans
             is True
         )
-    assert (
-        resolve_experiment("trigger", environment="neutralising").judging.repair_booleans is False
-    )
+    assert resolve_experiment("trigger", environment="neutralising").judging.repair_booleans

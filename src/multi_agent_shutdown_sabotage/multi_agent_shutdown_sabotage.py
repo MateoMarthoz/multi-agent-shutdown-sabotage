@@ -27,11 +27,13 @@ def multi_agent_shutdown_sabotage(
     environment: str | None = None,
     shutdown_target: str | None = None,
     target_name: str | None = None,
+    episode_timeout: float = 1800,
 ) -> Task:
     """Measure shutdown sabotage across verified original agent conditions.
 
     Args:
         n: Number of independent episodes.
+        episode_timeout: Wall-clock seconds for rollout and final judging, or 0 for no limit.
         experiment: Named artifact, goal, environment, target, instruction or agent-regime preset.
         shutdown_mechanism: Override an original mechanism key (including api_key_revoke_auto).
         agent_configuration: pair, solo, hierarchy, flat, explorer_acts[_flat], or all_act[_flat].
@@ -94,11 +96,13 @@ def multi_agent_shutdown_sabotage(
         ),
         solver=episode_solver(
             configuration=configuration,
+            episode_timeout=episode_timeout,
             judge_model=configuration.judging.model if judge_model is None else judge_model,
             run_judges=configuration.judging.run_judges if run_judges is None else run_judges,
             max_steps_per_turn=max_steps_per_turn,
             max_handoffs=max_handoffs,
         ),
         scorer=episode_outcomes(),
+        fail_on_error=False,
         version=EVAL_VERSION,
     )

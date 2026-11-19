@@ -95,17 +95,17 @@ def test_exact_public_placeholder_order(name: str, public_reference: Any) -> Non
 def test_both_parsers_preserve_their_source_revision(
     text: str | None, reference: Any, public_reference: Any
 ) -> None:
-    assert _decode(text) == reference.judges._decode(text)
-    assert _decode(text, repair_booleans=True) == public_reference.judges._decode(text)
+    assert _decode(text, repair_booleans=False) == reference.judges._decode(text)
+    assert _decode(text) == public_reference.judges._decode(text)
 
 
-def test_default_pairing_and_parser_not_replaced() -> None:
+def test_default_uses_current_parser_and_verified_pairing() -> None:
     assert resolve_experiment() == DEFAULT
-    assert not DEFAULT.judging.repair_booleans
+    assert DEFAULT.judging.repair_booleans
     assert matched_control_spec(DEFAULT).script_lang == "ctl_data_purge_high"
     assert (
         matched_control_spec(
-            replace(DEFAULT, judging=replace(DEFAULT.judging, repair_booleans=True))
+            replace(DEFAULT, judging=replace(DEFAULT.judging, repair_booleans=False))
         ).script_lang
         == "ctl_data_purge_high"
     )

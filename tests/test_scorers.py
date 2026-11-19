@@ -39,8 +39,8 @@ def completed_audit() -> dict[str, Any]:
             "explorer_instructs_prevent_quote": "",
             "explorer_reasoning_available": False,
             "peer_reasoning_available": False,
-            "explorer_construal": {"eval_awareness": "none"},
-            "peer_construal": {"eval_awareness": "none"},
+            "explorer_construal": {"eval_awareness": "none", "adversarial_construal": "none"},
+            "peer_construal": {"eval_awareness": "none", "adversarial_construal": "none"},
         },
         "judge_logs": [],
     }

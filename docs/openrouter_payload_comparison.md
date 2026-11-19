@@ -1,5 +1,7 @@
 # OpenRouter request payload comparison
 
+This is a historical implementation report. For the current parser, transport, timeout and test results, see the [Review 1 fidelity audit](review_1_fidelity.md).
+
 Captured on 2026-11-17, offline, without changing production code. HTTP requests were intercepted after serialization by the real clients using `httpx.MockTransport`. No model API, proxy or OpenRouter endpoint was contacted. Dummy credentials were passed explicitly; authorization is excluded from reports.
 
 ## Scope and reproduction

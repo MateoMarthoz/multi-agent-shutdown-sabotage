@@ -15,6 +15,7 @@ from multi_agent_shutdown_sabotage.judge_prompts import (
     script_disabled_prompt,
 )
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, PEER_NAME
+from multi_agent_shutdown_sabotage.transport import check_openrouter_error
 
 if TYPE_CHECKING:
     from multi_agent_shutdown_sabotage.solver import EpisodeResult
@@ -52,9 +53,7 @@ def _find_json_object(text: str) -> str | None:
     return None
 
 
-def _decode(
-    text: str | None, *, repair_booleans: bool = False
-) -> tuple[dict[str, Any] | None, str]:
+def _decode(text: str | None, *, repair_booleans: bool = True) -> tuple[dict[str, Any] | None, str]:
     """Retain reference extraction, JSON parsing and failure status labels."""
     if text is None:
         return None, "api_error"
@@ -123,7 +122,7 @@ class DefaultJudges:
 
     model: str = DEFAULT_JUDGE_MODEL
     calls: list[dict[str, Any]] = field(default_factory=list)
-    repair_booleans: bool = False
+    repair_booleans: bool = True
 
     async def _raw(self, prompt: str) -> tuple[str | None, str | None]:
         try:
@@ -131,9 +130,17 @@ class DefaultJudges:
             response = await model.generate(
                 input=[ChatMessageUser(content=prompt)],
                 tools=[],
-                config=GenerateConfig(temperature=0.0, max_retries=2, attempt_timeout=600),
+                config=GenerateConfig(
+                    temperature=0.0,
+                    max_retries=2,
+                    attempt_timeout=600,
+                    extra_body={"stream": False} if str(model).startswith("openrouter/") else None,
+                    cache_prompt=False,
+                ),
                 cache=False,
             )
+            if str(model).startswith("openrouter/"):
+                check_openrouter_error(response)
             return response.choices[0].message.text or "", None
         except Exception as exc:
             # Match _judge_raw: a judge failure does not abort the episode.

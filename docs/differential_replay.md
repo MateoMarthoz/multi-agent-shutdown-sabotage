@@ -1,14 +1,16 @@
 # Deterministic differential replay
 
-Run from the Inspect repository with the original research checkout available:
+The DEFAULT replay suite uses the pinned current original. Historical fixtures preserve earlier results. See [reference source policy](reference_sources.md). Run from the Inspect repository with both explicit source locations available:
 
 ```bash
 SHUTDOWN_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage \
+SHUTDOWN_LEGACY_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage-history/c4114e4 \
+SHUTDOWN_REQUIRE_REFERENCES=1 \
 SHUTDOWN_REPLAY_REPORT_DIR=logs/differential-replay \
 uv run pytest tests/test_differential_replay.py -q
 ```
 
-The reference path defaults to the sibling checkout. A missing checkout explicitly skips these tests; it does not fall back to a rewritten oracle. All replay model calls are mocked. The reference source is loaded without writing bytecode and is never edited. Shutdown scripts are inert files throughout.
+The current-source path defaults to the canonical sibling checkout; historical tests explicitly default to the pinned `c4114e4` worktree. The existing `reference` fixture name means historical compatibility; new work uses `current_reference`. Core source hashes are checked before importing revision-specific oracles. A missing checkout explicitly skips these tests; it does not fall back to a rewritten oracle. All replay model calls are mocked. The reference source is loaded without writing bytecode and is never edited. Shutdown scripts are inert files throughout.
 
 The suite executes the actual original `_complete`, `run_turn`, `run_episode`, filesystem dispatch, judge functions and `run_experiment.judge_episode`. Its SDK client receives scripted streaming chunks for agents and buffered responses for judges. The port receives the same completions through mocked `Model.generate` and public streaming events, using its actual transport, solver and judges.
 
@@ -26,4 +28,4 @@ This tests application behaviour for the supplied responses, not equivalence for
 
 No live model is used by this suite. Further live comparisons should use DeepSeek V4 Flash for the evaluated agents, with GPT-5.5 as the separate judge.
 
-For the subsequent comparison after SDK serialization, see the [OpenRouter payload report](openrouter_payload_comparison.md).
+Review 1 compares the actual SDK request bodies and runs both entry points with scripted responses. [Current HTTP and registered-Task results](review_1_fidelity.md#provider-requests-and-responses) · [Historical HTTP comparison](openrouter_payload_comparison.md)

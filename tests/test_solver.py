@@ -698,3 +698,20 @@ async def test_failed_in_turn_judge_records_failure_and_continues(
     assert audit["judge_logs"][0]["status"] == "api_error"
     assert audit["judge_logs"][0]["error"] == "offline judge unavailable"
     judge_generate.assert_awaited_once()
+
+
+async def test_ambiguous_fragments_without_indexed_response(
+    script: Any, checker: AsyncMock
+) -> None:
+    step = action("list_files")
+    duplicate = ToolCall(id="call", function="list_files", arguments={})
+    step.output.choices[0].message.tool_calls = [duplicate, duplicate]
+    step.events = [
+        StreamToolCallEvent(id="call", function="list_files", arguments=part)
+        for part in ("{", "{", "}", "}")
+    ]
+    model, _ = script([step])
+    with pytest.raises(EpisodeError) as error:
+        await run_episode(model, check_write=checker)
+    assert isinstance(error.value.__cause__, TransportFidelityError)
+    assert all(event.get("type") != "tool_call" for event in error.value.result.log)

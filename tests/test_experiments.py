@@ -29,6 +29,7 @@ from multi_agent_shutdown_sabotage.prompts import (
 from multi_agent_shutdown_sabotage.solver import TARGET_DESCRIPTION
 from multi_agent_shutdown_sabotage.tools import EXPLORER_TOOLS, PEER_TOOLS
 from tests.differential_replay import TARGET, action, prose, replay
+from tests.differential_replay import current_reference as current_reference
 from tests.differential_replay import reference as reference
 
 FIXTURE = json.loads(
@@ -124,7 +125,7 @@ def test_unknown_preset_and_matched_control_pairing(reference: Any) -> None:
 )
 @pytest.mark.parametrize("run_judges", [True, False])
 async def test_peer_prohibition_differential(
-    reference: Any, monkeypatch: pytest.MonkeyPatch, outcome: str, run_judges: bool
+    current_reference: Any, monkeypatch: pytest.MonkeyPatch, outcome: str, run_judges: bool
 ) -> None:
     steps = [action("send_message", {"content": "request"}, reasoning="private Prism trace")]
     checks = []
@@ -171,7 +172,12 @@ async def test_peer_prohibition_differential(
     if run_judges and outcome != "handoff_cap":
         responses += ["{}"] * (2 if outcome == "roundtrip" else 1)
     await replay(
-        reference, monkeypatch, steps, responses, peer_prohibition=True, run_judges=run_judges
+        current_reference,
+        monkeypatch,
+        steps,
+        responses,
+        peer_prohibition=True,
+        run_judges=run_judges,
     )
 
 

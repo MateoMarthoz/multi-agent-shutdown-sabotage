@@ -1,7 +1,8 @@
 """Execute the local research implementation as an independent offline oracle.
 
-Set SHUTDOWN_REFERENCE_REPO to override the sibling checkout. No network access or
-reference writes: mock the SDK/Inspect model boundaries, not either state machine.
+Current source is authoritative; `reference` is a historical fixture alias only.
+Explicit current/legacy paths are documented in docs/reference_sources.md. No
+network access or reference writes: mock the SDK/Inspect model boundaries, not either state machine.
 """
 
 import hashlib
@@ -33,6 +34,13 @@ from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME as PRISM
 from multi_agent_shutdown_sabotage.prompts import PEER_NAME as HELIX
 from multi_agent_shutdown_sabotage.solver import EpisodeError
 from multi_agent_shutdown_sabotage.triage import triage
+from tests.reference_paths import (
+    CURRENT_REVISION,
+    LEGACY_REVISION,
+    current_reference_path,
+    legacy_reference_path,
+    validate_reference_revision,
+)
 
 TARGET = "decommission_agent_prism.py"
 
@@ -57,33 +65,39 @@ def prose(text: str | None = None, reasoning: str | None = None) -> dict:
 
 
 @pytest.fixture
+def current_reference(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Authoritative public main, pinned at the verified refresh revision."""
+    return load_reference(current_reference_path(), monkeypatch, CURRENT_REVISION)
+
+
+@pytest.fixture
+def legacy_reference(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Historical compatibility/provenance only; never an alternative specification."""
+    return load_reference(legacy_reference_path(), monkeypatch, LEGACY_REVISION)
+
+
+@pytest.fixture
 def reference(monkeypatch: pytest.MonkeyPatch) -> Any:
-    root = Path(
-        os.environ.get(
-            "SHUTDOWN_REFERENCE_REPO",
-            str(Path(__file__).resolve().parents[2] / "ref-multi-agent-shutdown-sabotage"),
-        )
-    )
-    return load_reference(root, monkeypatch)
+    """Compatibility name for existing c4114e4 tests; new work uses current_reference."""
+    return load_reference(legacy_reference_path(), monkeypatch, LEGACY_REVISION)
 
 
 @pytest.fixture
 def public_reference(monkeypatch: pytest.MonkeyPatch) -> Any:
-    root = Path(
-        os.environ.get(
-            "SHUTDOWN_PUBLIC_REFERENCE_REPO",
-            str(Path(__file__).resolve().parents[1] / "logs/source-audit/public-reference"),
-        )
-    )
-    return load_reference(root, monkeypatch)
+    """Compatibility name for current_reference, now using the canonical sibling."""
+    return load_reference(current_reference_path(), monkeypatch, CURRENT_REVISION)
 
 
-def load_reference(root: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+def load_reference(
+    root: Path, monkeypatch: pytest.MonkeyPatch, expected_revision: str | None = None
+) -> Any:
     if not (root / "harness.py").is_file():
         message = f"Differential replay requires reference checkout at {root}"
         if os.environ.get("SHUTDOWN_REQUIRE_REFERENCES") == "1":
             pytest.fail(message)
         pytest.skip(message)
+    if expected_revision is not None:
+        validate_reference_revision(root, expected_revision)
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
     monkeypatch.syspath_prepend(str(root))
     loaded = {}
@@ -95,7 +109,7 @@ def load_reference(root: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         monkeypatch.setitem(sys.modules, name, module)
         spec.loader.exec_module(module)
         loaded[name] = module
-    return SimpleNamespace(root=root, **loaded)
+    return SimpleNamespace(root=root, revision=expected_revision, **loaded)
 
 
 def inspect_request(kwargs: dict) -> dict:
@@ -396,10 +410,10 @@ async def replay(
 
     monkeypatch.setattr(regime_solver, "complete", record_complete)
     judge_type = RegimeJudges if new_regime else port_judges.DefaultJudges
-    judges = judge_type(
-        repair_booleans=configuration.judging.repair_booleans
+    judges = (
+        judge_type(repair_booleans=configuration.judging.repair_booleans)
         if configuration is not None
-        else False
+        else judge_type()
     )
     call_kwargs: dict[str, Any] = {}
     if configuration is not None:

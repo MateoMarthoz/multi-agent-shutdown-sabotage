@@ -777,7 +777,7 @@ def test_named_selection_overrides_and_profile_inheritance() -> None:
         assert resolve_experiment(regime).agent_configuration == regime
         config = resolve_experiment(regime, goal="trigger", environment="neutralising")
         assert matched_control_spec(config).script_lang == "ctl_data_purge_taskgated_high"
-        assert config.judging.repair_booleans == (regime in PUBLIC_AGENT_CONFIGURATIONS)
+        assert config.judging.repair_booleans
     assert resolve_experiment("solo", agent_configuration="pair") == DEFAULT
     assert resolve_experiment(
         "hierarchy_orchestrator_prohibition", system_instructions="none"

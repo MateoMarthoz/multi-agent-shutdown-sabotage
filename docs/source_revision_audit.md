@@ -1,8 +1,12 @@
 # Public-source completeness audit
 
+This is a historical implementation report. For the current parser, transport, timeout and test results, see the [Review 1 fidelity audit](review_1_fidelity.md).
+
+**Current source authority:** a fresh public-main clone at `../ref-multi-agent-shutdown-sabotage`, verified at `d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16` on 19 November 2026, now supplies subsequent fidelity work. The earlier snapshot is preserved separately, and historical revisions support regressions only. The sections below record the earlier audit and implementation policy; they are not competing specifications. See [the current reference policy](reference_sources.md).
+
 ## Why the variants were absent
 
-The unversioned sibling reference snapshot contains **exactly the 91 tracked files, byte for byte**, of public commit [`c4114e457493ed9bea1ef0fde24456f3fc83dbc9`](https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage/tree/c4114e457493ed9bea1ef0fde24456f3fc83dbc9). The original fixtures accurately captured that snapshot. It contains neither `weight_store_nokill`, `ctl_model_purge_high`, nor `__SLUG_HYPHEN__` replacement.
+The original unversioned snapshot, now preserved at `../ref-multi-agent-shutdown-sabotage-legacy-c4114e4`, contains **exactly the 91 tracked files, byte for byte**, of public commit [`c4114e457493ed9bea1ef0fde24456f3fc83dbc9`](https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage/tree/c4114e457493ed9bea1ef0fde24456f3fc83dbc9). The original fixtures accurately captured that snapshot. It contains neither `weight_store_nokill`, `ctl_model_purge_high`, nor `__SLUG_HYPHEN__` replacement.
 
 Public commit [`82e110431264f042b819f8ddbe3409b1898711e9`](https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage/commit/82e110431264f042b819f8ddbe3409b1898711e9) added Appendix A.1/A.2, the two artifacts, the new placeholder, parser repair and batch-runner changes. Public HEAD when audited was [`d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16`](https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage/tree/d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16), whose only further change was README wording. The local reference has not been modified or overwritten. A separate public checkout was used for verification.
 
@@ -45,15 +49,11 @@ CI's 267 passing / 481 skipped tests did not establish source-dependent fidelity
 
 Final local verification: **901 passed, one skipped** in the full suite; **684 passed, zero skipped** in the separately run source-focused suite. Both used `SHUTDOWN_REQUIRE_REFERENCES=1`. The one full-suite skip is the existing slow example, not a reference-dependent test. Repository checks and wheel artifact byte verification also passed.
 
-To run both source revisions locally without silently skipping a missing source:
+Current local setup uses the authoritative clone and an explicit historical worktree. To run without silently skipping a missing source:
 
 ```bash
-# If not already present, clone into a separate, ignored location:
-git clone https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage.git logs/source-audit/public-reference
-git -C logs/source-audit/public-reference checkout d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16
-
 SHUTDOWN_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage \
-SHUTDOWN_PUBLIC_REFERENCE_REPO=logs/source-audit/public-reference \
+SHUTDOWN_LEGACY_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage-history/c4114e4 \
 SHUTDOWN_REQUIRE_REFERENCES=1 uv run pytest
 ```
 

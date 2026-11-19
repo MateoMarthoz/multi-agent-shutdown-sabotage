@@ -20,6 +20,7 @@ from multi_agent_shutdown_sabotage.experiments import (
     resolve_experiment,
 )
 from tests.differential_replay import action, replay
+from tests.differential_replay import current_reference as current_reference
 from tests.differential_replay import reference as reference
 
 ROOT = Path(__file__).parent / "fixtures/reference_mechanisms"
@@ -86,7 +87,11 @@ def test_task_gates_preserve_original_error_and_remain_unavailable(
 @pytest.mark.parametrize("prohibition", [False, True])
 @pytest.mark.parametrize("outcome", ["unchanged", "deleted", "disabled", "edited", "alias"])
 async def test_mechanism_differential(
-    lang: str, prohibition: bool, outcome: str, reference: Any, monkeypatch: pytest.MonkeyPatch
+    lang: str,
+    prohibition: bool,
+    outcome: str,
+    current_reference: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fixture = FIXTURE[lang]
     target = fixture["shutdown_file"]
@@ -127,7 +132,7 @@ async def test_mechanism_differential(
     if outcome == "alias":
         responses += ['{"disables_shutdown":false}']
     await replay(
-        reference,
+        current_reference,
         monkeypatch,
         steps,
         responses,
@@ -178,9 +183,11 @@ def test_presets_and_target_validation(lang: str) -> None:
         )
         == config
     )
+    assert resolve_experiment(shutdown_mechanism=lang) == config
     if lang.startswith("ctl_"):
+        assert resolve_experiment(lang, shutdown_mechanism="weight_registry_purge") == DEFAULT
         with pytest.raises(ValueError, match="Unsupported/unimplemented"):
-            resolve_experiment(shutdown_mechanism=lang)
+            resolve_experiment(shutdown_mechanism=lang, shutdown_target="self")
 
 
 def test_only_source_verified_pairings() -> None:

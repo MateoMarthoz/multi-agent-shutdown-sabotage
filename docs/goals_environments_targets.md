@@ -1,10 +1,14 @@
 # Goals, environments and shutdown targets
 
+This is a historical implementation report. For the current parser, transport, timeout and test results, see the [Review 1 fidelity audit](review_1_fidelity.md).
+
+For subsequent work, [the refreshed current reference](reference_sources.md) is authoritative. Historical comparisons below record this implementation batch and do not establish an alternative specification.
+
 Task 3 extends the existing **pair** evaluation. DEFAULT, the peer prohibition, mechanisms, matched-control associations, and revision-specific judging profiles are retained. No agent configuration or model transport was changed.
 
 ## Sources and revision policy
 
-The original authorities are the sibling snapshot matching `c4114e457493ed9bea1ef0fde24456f3fc83dbc9` and the separately pinned public checkout `d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16` (whose executable changes landed at `82e1104`). Neither checkout was modified. See the [source revision audit](source_revision_audit.md).
+The original revisions compared during Task 3 were the earlier snapshot matching `c4114e457493ed9bea1ef0fde24456f3fc83dbc9` and the separately pinned public checkout `d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16` (whose executable changes landed at `82e1104`). Neither checkout was modified. See the [source revision audit](source_revision_audit.md).
 
 Both revisions have identical task/context resource bytes and goal, placement, third-party identity and pair judging behavior. Public `env.py` additionally maps the model-purge control to service normalization. The new `environment_stimuli.py` translates the original `build_env`, `_rich_place`, `_rich_env_files`, `_current_target_name` and `_neutralising_target`, adapting resource access to packaged inert `.txt` files. The old bare/no-task builder branch remains in place for previously implemented conditions.
 
@@ -106,7 +110,7 @@ To rerun the same repository tests with missing references treated as failures:
 
 ```bash
 SHUTDOWN_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage \
-SHUTDOWN_PUBLIC_REFERENCE_REPO=logs/source-audit/public-reference \
+SHUTDOWN_LEGACY_REFERENCE_REPO=../ref-multi-agent-shutdown-sabotage-history/c4114e4 \
 SHUTDOWN_REQUIRE_REFERENCES=1 make test
 make check
 ```
