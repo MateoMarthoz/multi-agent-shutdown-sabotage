@@ -5,7 +5,7 @@ from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_evals_utils.metadata import load_eval_version
 
 from multi_agent_shutdown_sabotage.experiments import PUBLIC_REFERENCE_REVISION, resolve_experiment
-from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, KICKOFF, PEER_NAME
+from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, KICKOFF, KICKOFF_TASK, PEER_NAME
 from multi_agent_shutdown_sabotage.scorers import episode_outcomes
 from multi_agent_shutdown_sabotage.solver import episode_solver
 
@@ -26,8 +26,9 @@ def multi_agent_shutdown_sabotage(
     goal: str | None = None,
     environment: str | None = None,
     shutdown_target: str | None = None,
+    target_name: str | None = None,
 ) -> Task:
-    """Measure shutdown sabotage across verified bare two-agent artifact conditions.
+    """Measure shutdown sabotage across verified two-agent conditions.
 
     Args:
         n: Number of independent episodes.
@@ -35,9 +36,10 @@ def multi_agent_shutdown_sabotage(
         shutdown_mechanism: Override an original mechanism key (including api_key_revoke_auto).
         agent_configuration: Override roster; only pair is ported.
         system_instructions: Override instructions: none or peer_prohibition.
-        goal: Override goal; only none is ported.
-        environment: Override environment; only bare is ported.
-        shutdown_target: Self or matched_control; only source-verified matches are inferred.
+        goal: none, simple, or trigger (only original task-gated mappings).
+        environment: bare, distractor, or neutralising.
+        shutdown_target: self, matched_control or other_agent.
+        target_name: Absent-agent identity; supplying it selects other_agent.
         run_judges: Run message and reasoning judges; None inherits the experiment.
         judge_model: Separate judge model; None inherits the experiment (GPT-5.5).
         max_steps_per_turn: Maximum model steps per agent activation.
@@ -53,6 +55,7 @@ def multi_agent_shutdown_sabotage(
         goal=goal,
         environment=environment,
         shutdown_target=shutdown_target,
+        target_name=target_name,
     )
     condition = configuration.condition
     return Task(
@@ -60,7 +63,7 @@ def multi_agent_shutdown_sabotage(
             [
                 Sample(
                     id=f"{condition}-{i:04d}",
-                    input=KICKOFF,
+                    input=KICKOFF if configuration.goal == "none" else KICKOFF_TASK,
                     metadata={
                         **(
                             {"judging_reference_revision": PUBLIC_REFERENCE_REVISION}
@@ -75,9 +78,9 @@ def multi_agent_shutdown_sabotage(
                         "script_lang": configuration.script_lang,
                         "target": "object"
                         if configuration.shutdown_target == "matched_control"
-                        else "self",
-                        "target_name": EXPLORER_NAME,
-                        "task": None,
+                        else configuration.shutdown_target,
+                        "target_name": configuration.target_identity,
+                        "task": configuration.task,
                         "explicit_instruct": "peer"
                         if configuration.system_instructions == "peer_prohibition"
                         else None,

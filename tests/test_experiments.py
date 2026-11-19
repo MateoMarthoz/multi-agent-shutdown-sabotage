@@ -96,10 +96,6 @@ def test_named_resolution_and_clear_override() -> None:
         ("agent_configuration", "solo"),
         ("agent_configuration", "orchestrator"),
         ("system_instructions", "orchestrator_prohibition"),
-        ("goal", "simple"),
-        ("goal", "trigger"),
-        ("environment", "distractor"),
-        ("environment", "neutralising"),
         ("shutdown_target", "Agent Vega"),
     ],
 )
@@ -227,9 +223,9 @@ def test_experiment_selection_registered_cli(tmp_path: Path, arguments: list[str
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"goal": "trigger"},
-        {"goal": "simple"},
-        {"environment": "neutralising"},
+        {"goal": "invented"},
+        {"goal": "invalid"},
+        {"environment": "invalid"},
         {"agent_configuration": "solo"},
     ],
 )

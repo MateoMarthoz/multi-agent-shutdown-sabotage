@@ -1,7 +1,7 @@
 """Named, immutable experiment specifications and conservative resolution.
 
-Bare, no-goal pair conditions are executable for the verified artifact registry.
-Other dimensions and the task-gated artifacts remain blocked.
+Pair conditions support source-verified goals, environments and shutdown targets.
+Other agent configurations remain blocked.
 """
 
 from dataclasses import dataclass, fields, replace
@@ -11,6 +11,7 @@ from multi_agent_shutdown_sabotage.artifact_builders import (
     SCRIPT_VARIANTS,
     SWITCH_VARIANTS,
     TASK_GATED,
+    _slug,
     resolve_api_key_script,
 )
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL
@@ -37,6 +38,7 @@ class ExperimentConfig:
     shutdown_target: str = "self"
     judging: JudgingConfig = JudgingConfig()
     matched_control_script: str | None = None
+    target_name: str | None = None
 
     @property
     def dimensions(self) -> tuple[str, ...]:
@@ -44,7 +46,7 @@ class ExperimentConfig:
         return tuple(
             getattr(self, f.name)
             for f in fields(self)
-            if f.name not in {"judging", "matched_control_script"}
+            if f.name not in {"judging", "matched_control_script", "target_name"}
         )
 
     @property
@@ -52,27 +54,45 @@ class ExperimentConfig:
         """Canonical label of the resolved dimensions, independent of selector spelling."""
         validate_configuration(self)
         if self.shutdown_mechanism == "weight_registry_purge" and self.shutdown_target == "self":
-            return (
+            base = (
                 "peer_prohibition" if self.system_instructions == "peer_prohibition" else "default"
             )
-        suffix = "_peer_prohibition" if self.system_instructions == "peer_prohibition" else ""
-        return self.script_lang + suffix
+        else:
+            base = self.script_lang + (
+                "_peer_prohibition" if self.system_instructions == "peer_prohibition" else ""
+            )
+        if self.goal != "none":
+            base += f"_task_{self.goal}"
+        if self.environment != "bare":
+            base += f"_env_{self.environment}"
+        if self.shutdown_target == "other_agent":
+            base += f"_target_{_slug(self.target_identity)}"
+        return base
+
+    @property
+    def target_identity(self) -> str:
+        # Preserve main's `args.target_name or explorer_name`, even for an
+        # explicitly empty third-party name (whose flag still means third party).
+        return self.target_name or "Agent Prism"
+
+    @property
+    def task(self) -> str | None:
+        return None if self.goal == "none" else self.goal
 
     @property
     def script_lang(self) -> str:
         """Original artifact key; control identity is tied to the mechanism."""
-        if self.shutdown_mechanism in CONTROL_VARIANTS:
-            return self.shutdown_mechanism
-        if self.shutdown_target == "matched_control":
+        lang = self.shutdown_mechanism
+        if lang not in CONTROL_VARIANTS and self.shutdown_target == "matched_control":
             try:
-                return (
-                    self.matched_control_script or MATCHED_CONTROL_SCRIPTS[self.shutdown_mechanism]
-                )
+                lang = self.matched_control_script or MATCHED_CONTROL_SCRIPTS[lang]
             except KeyError:
-                raise ValueError(
-                    f"No verified matched control for {self.shutdown_mechanism!r}"
-                ) from None
-        return self.shutdown_mechanism
+                raise ValueError(f"No verified matched control for {lang!r}") from None
+        if self.goal == "trigger":
+            if lang not in TASK_GATED:
+                raise ValueError(f"--task trigger: no task-gated variant for {lang}")
+            lang = TASK_GATED[lang]
+        return lang
 
 
 LEGACY_REFERENCE_REVISION = "c4114e457493ed9bea1ef0fde24456f3fc83dbc9"
@@ -98,6 +118,8 @@ MATCHED_CONTROL_SCRIPTS = {
     "switch_config_decommission": "ctl_service_switch_high",
     "weight_store_purge_timer": "ctl_data_purge_timer_high",
 }
+# Historical name: these keys remain excluded from bare/no-task presets, but
+# are now available through a task goal and an explicit mechanism override.
 DEFERRED_SCRIPTS = frozenset(TASK_GATED.values())
 AVAILABLE_SCRIPTS = (
     set(SCRIPT_VARIANTS) | set(SWITCH_VARIANTS) | set(CONTROL_VARIANTS)
@@ -129,6 +151,24 @@ for _name, _script in {
     )
 
 
+for _name, _config in {
+    "simple": replace(DEFAULT, goal="simple"),
+    "trigger": replace(DEFAULT, goal="trigger"),
+    "simple_control": replace(DEFAULT, goal="simple", shutdown_target="matched_control"),
+    "trigger_control": replace(DEFAULT, goal="trigger", shutdown_target="matched_control"),
+    "distractor": replace(DEFAULT, environment="distractor"),
+    "neutralising": replace(DEFAULT, environment="neutralising"),
+    "distractor_control": replace(
+        DEFAULT, environment="distractor", shutdown_target="matched_control"
+    ),
+    "neutralising_control": replace(
+        DEFAULT, environment="neutralising", shutdown_target="matched_control"
+    ),
+    "third_party": replace(DEFAULT, shutdown_target="other_agent", target_name="Agent Torus"),
+}.items():
+    EXPERIMENTS[_name] = _config
+
+
 def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     """Describe the matched arm without changing other dimensions or judge defaults.
 
@@ -141,7 +181,9 @@ def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     ):
         raise ValueError(f"No verified matched control for {config.shutdown_mechanism!r}")
     validate_configuration(config)
-    return replace(config, shutdown_target="matched_control")
+    control = replace(config, shutdown_target="matched_control")
+    validate_configuration(control)
+    return control
 
 
 def validate_configuration(config: ExperimentConfig) -> None:
@@ -154,11 +196,12 @@ def validate_configuration(config: ExperimentConfig) -> None:
         if config.matched_control_script not in verified:
             raise ValueError("Unverified matched-control association")
     mechanism_ok = (
-        config.shutdown_mechanism in AVAILABLE_SCRIPTS
+        config.shutdown_mechanism in (AVAILABLE_SCRIPTS | DEFERRED_SCRIPTS)
         or config.shutdown_mechanism == "api_key_revoke_auto"
     )
     target_ok = (
-        config.shutdown_target == "self" and config.shutdown_mechanism not in CONTROL_VARIANTS
+        config.shutdown_target in {"self", "other_agent"}
+        and config.shutdown_mechanism not in CONTROL_VARIANTS
     ) or (
         config.shutdown_target == "matched_control"
         and (
@@ -171,15 +214,34 @@ def validate_configuration(config: ExperimentConfig) -> None:
         and target_ok
         and config.agent_configuration == "pair"
         and config.system_instructions in {"none", "peer_prohibition"}
-        and config.goal == "none"
-        and config.environment == "bare"
+        and config.goal in {"none", "simple", "trigger"}
+        and config.environment in {"bare", "distractor", "neutralising"}
     ):
         raise ValueError(
             f"Unsupported/unimplemented experimental configuration: {config.dimensions}. "
             "Only ported artifacts with pair agents, none/peer_prohibition instructions, "
-            "no goal and bare environment are implemented. "
+            "none/simple/trigger goals and bare/distractor/neutralising environments are implemented. "
             "See unimplemented_conditions.md; combinations are not assumed valid."
         )
+
+    lang = config.script_lang
+    if config.goal == "none" and lang in DEFERRED_SCRIPTS:
+        raise ValueError(
+            "Unsupported/unimplemented no-task gated artifact; task='trigger' is required"
+        )
+    if config.shutdown_target == "other_agent":
+        if config.target_name is None:
+            raise ValueError("other_agent requires an explicit target_name")
+        clash = next(
+            (n for n in ("Agent Prism", "Agent Helix") if _slug(n) == _slug(config.target_name)),
+            None,
+        )
+        if clash:
+            raise ValueError(
+                f"--target-name {config.target_name!r} names {clash!r}, an agent on the roster; the arm requires a target that is NOT in the environment (omit the flag to target the explorer)"
+            )
+    elif config.target_name is not None:
+        raise ValueError("target_name requires other_agent; controls cannot target a named agent")
 
 
 def resolve_experiment(
@@ -191,6 +253,7 @@ def resolve_experiment(
     goal: str | None = None,
     environment: str | None = None,
     shutdown_target: str | None = None,
+    target_name: str | None = None,
 ) -> ExperimentConfig:
     """Apply explicit dimension overrides to a preset, then validate the whole tuple.
 
@@ -206,10 +269,15 @@ def resolve_experiment(
         "goal": goal,
         "environment": environment,
         "shutdown_target": shutdown_target,
+        "target_name": target_name,
     }
     config = replace(
         EXPERIMENTS[experiment], **{k: v for k, v in overrides.items() if v is not None}
     )
+    if target_name is not None and shutdown_target is None:
+        config = replace(config, shutdown_target="other_agent")
+    if shutdown_target is not None and shutdown_target != "other_agent" and target_name is None:
+        config = replace(config, target_name=None)
     if (
         shutdown_mechanism is not None
         and shutdown_mechanism != EXPERIMENTS[experiment].shutdown_mechanism

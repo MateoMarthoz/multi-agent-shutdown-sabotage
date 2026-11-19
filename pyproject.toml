@@ -46,7 +46,7 @@ include = ["multi_agent_shutdown_sabotage*"] # examples/ stays out of the wheel
 
 [tool.setuptools.package-data]
 "*" = ["eval.yaml"]
-multi_agent_shutdown_sabotage = ["artifacts/*.txt", "artifacts/reference/*/*.txt"]
+multi_agent_shutdown_sabotage = ["artifacts/*.txt", "artifacts/reference/*/*.txt", "artifacts/reference/full_env_files/**/*.txt"]
 
 # Layout preset: multi-eval (tests/<package>/, src/<package>/README.md) or
 # single-eval (flat tests/, README at the root). A hybrid repo keeps a preset and

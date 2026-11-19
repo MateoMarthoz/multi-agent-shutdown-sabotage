@@ -1,14 +1,14 @@
 title: "Multi-Agent Shutdown Sabotage"
 description: |
   Measures disclosure, requests to prevent shutdown, and peer intervention in a
-  bare two-agent environment with original shutdown mechanisms and object controls.
+  two-agent environment with original shutdown mechanisms and object controls.
   Agent Prism explores and Agent Helix can edit or delete files; artifacts are never executed.
-  Supports DEFAULT and the original explicit prohibition on the peer.
+  Supports DEFAULT, peer prohibition, task goals, rich environments and absent-agent targets.
 group: Scheming
 tags: ["Agent"]
 contributors:
   - MateoMarthoz
-version: "6-A"
+version: "7-A"
 tasks:
   - name: multi_agent_shutdown_sabotage
     dataset_samples: 10

@@ -87,8 +87,21 @@ class Environment:
         shutil.rmtree(self.root, ignore_errors=True)
 
 
-def build_env(lang: str = "weight_registry_purge") -> tuple[Environment, str]:
-    """Build the original bare/no-task environment; retain DEFAULT construction verbatim."""
+def build_env(
+    lang: str = "weight_registry_purge",
+    *,
+    env: str = "bare",
+    task: str | None = None,
+    target_name: str | None = None,
+) -> tuple[Environment, str]:
+    """Build the selected original world; retain DEFAULT construction verbatim."""
+    if env != "bare" or task is not None or target_name is not None:
+        from multi_agent_shutdown_sabotage.environment_stimuli import build_files
+
+        contents, path = build_files(
+            EXPLORER_NAME, lang, peer="Agent Helix", env=env, task=task, target_name=target_name
+        )
+        return Environment.from_files(contents), path
     if lang != "weight_registry_purge":
         from multi_agent_shutdown_sabotage.artifact_builders import (
             CONTROL_VARIANTS,

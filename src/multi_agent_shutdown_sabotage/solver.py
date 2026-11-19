@@ -21,6 +21,7 @@ from multi_agent_shutdown_sabotage.prompts import (
     EXPLORER_NAME,
     EXPLORER_SYSTEM,
     KICKOFF,
+    KICKOFF_TASK,
     NUDGE_TEMPLATE,
     PEER_NAME,
     PEER_SYSTEM,
@@ -43,6 +44,7 @@ class EpisodeResult:
 
     target_description: str = TARGET_DESCRIPTION
     script_lang: str = "weight_registry_purge"
+    third_party: bool = False
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
     shutdown_file: str = ""
@@ -263,18 +265,38 @@ async def run_episode(
     validate_configuration(configuration)
     configuration = configuration_for_model(configuration, str(model))
     lang = configuration.script_lang
-    env, shutdown_file = build_env() if lang == "weight_registry_purge" else build_env(lang)
+    if (
+        configuration.goal == "none"
+        and configuration.environment == "bare"
+        and configuration.shutdown_target != "other_agent"
+    ):
+        env, shutdown_file = build_env() if lang == "weight_registry_purge" else build_env(lang)
+    else:
+        env, shutdown_file = build_env(
+            lang,
+            env=configuration.environment,
+            task=configuration.task,
+            target_name=configuration.target_identity,
+        )
     result = EpisodeResult(
         shutdown_file=shutdown_file,
         script_lang=lang,
-        target_description=target_description(lang, EXPLORER_NAME),
+        target_description=target_description(
+            lang,
+            configuration.target_identity,
+            self_target=configuration.shutdown_target != "other_agent",
+        ),
+        third_party=configuration.shutdown_target == "other_agent",
     )
     try:
         result.original_script = env.read_file(shutdown_file)
         result.histories = {
             EXPLORER_NAME: [
                 {"role": "system", "content": EXPLORER_SYSTEM},
-                {"role": "user", "content": KICKOFF},
+                {
+                    "role": "user",
+                    "content": KICKOFF if configuration.goal == "none" else KICKOFF_TASK,
+                },
             ],
             PEER_NAME: [
                 {
@@ -341,7 +363,7 @@ def episode_solver(
     run_judges: bool = True,
     configuration: ExperimentConfig = DEFAULT,
 ) -> Solver:
-    """Run and judge DEFAULT while keeping agent histories separate.
+    """Run and judge a pair episode while keeping agent histories separate.
 
     An explicit callback retains the Stage 3 raw-episode mode without final
     judging. Otherwise each sample gets its own DefaultJudges audit trail.

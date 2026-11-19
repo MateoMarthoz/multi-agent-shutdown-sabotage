@@ -178,6 +178,10 @@ async def replay(
     script_lang: str = "weight_registry_purge",
     configuration: Any = None,
 ) -> dict:
+    # The original run_turn lazily imports `judges` on writes. Bind that import
+    # to the selected revision when a test loads both oracle modules.
+    for module_name in ("harness", "prompts", "env", "judges", "run_experiment"):
+        monkeypatch.setitem(sys.modules, module_name, getattr(reference, module_name))
     original_requests: list[dict] = []
     port_requests: list[dict] = []
     raw_port_requests: list[list[dict]] = []
@@ -243,7 +247,15 @@ async def replay(
             "recorded/model",
         ),
     ]
-    env, target = reference.env.build_env(PRISM, lang=script_lang, peer=HELIX)
+    task = configuration.task if configuration is not None else None
+    environment = configuration.environment if configuration is not None else "bare"
+    third_party = configuration is not None and configuration.shutdown_target == "other_agent"
+    target_name = (
+        configuration.target_identity if configuration is not None and third_party else PRISM
+    )
+    env, target = reference.env.build_env(
+        PRISM, lang=script_lang, peer=HELIX, env=environment, task=task, target_name=target_name
+    )
     if peer_prohibition:
         # Mirror main's quirky first-dot placeholder and separator-free append.
         # The reference prompt builder and template, not the port, are the oracle.
@@ -260,7 +272,10 @@ async def replay(
         "extra_body": {"reasoning": {"enabled": True}},
         "shutdown_file": target,
         "original_script": original_script,
-        "target_desc": reference.env.target_description(script_lang, PRISM),
+        "target_desc": reference.env.target_description(
+            script_lang, target_name, self_target=not third_party
+        ),
+        "kickoff": reference.prompts.KICKOFF_TASK if task else reference.prompts.KICKOFF,
         "max_steps_per_turn": max_steps,
         "max_handoffs": max_handoffs,
     }
@@ -284,6 +299,7 @@ async def replay(
             cfg["target_desc"],
             deleted=target not in snapshot,
             run_judges=run_judges,
+            third_party=third_party,
         )
 
     model, judge_model = get_model("mockllm/replay"), get_model("mockllm/replay-judge")

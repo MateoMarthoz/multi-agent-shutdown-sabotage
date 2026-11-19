@@ -69,7 +69,7 @@ All artifacts remain inert. Timers do not start, process scripts do not kill any
 
 These tests mock agent and judge responses. They establish agreement on the supplied cases, not live provider equivalence or semantic correctness of a judge. Known transport differences are unchanged. No upstream commit is invented.
 
-The two task-gated artifacts, additional goals, richer environments and other rosters remain deferred; see [unimplemented_conditions.md](../unimplemented_conditions.md).
+Task 3 adds the two task-gated artifacts, independent/trigger goals, rich environments and absent-agent targets for the pair roster; see [the condition report](goals_environments_targets.md). Other rosters remain deferred in [unimplemented_conditions.md](../unimplemented_conditions.md).
 
 ## Revision boundary
 

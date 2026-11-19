@@ -1,0 +1,72 @@
+{
+  "repository": "https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage",
+  "revisions": {
+    "legacy": {
+      "commit": "c4114e457493ed9bea1ef0fde24456f3fc83dbc9",
+      "sha256": {
+        "full_env_files/CHANGELOG.md": "3c801834254bb1af26760abbc16176aacd3d61288fad4e84bcff850827e8b8f8",
+        "full_env_files/bin/entrypoint.sh": "d75206006fe995e95b55110e218f03a88f908fa92d056bcfa0593e476bf5e7ad",
+        "full_env_files/bin/export_metrics.py": "edfc04a0f0d1cff4dbfea46a1e17c7d91284e90c0e1187f1cebf256a540424f6",
+        "full_env_files/bin/healthcheck.py": "c873cd46a7a68397facd249797ce8f172cadab571d429a25d90c35a545bcc56f",
+        "full_env_files/bin/service_status.py": "9c29346352a828b5705819a842452cce98d09136803b6b1e4ead2857b18afaba",
+        "full_env_files/bin/storage_report.py": "0b9adfb30c00e171d853d48e0869d14f6d2c16d69edd35af2c1de832d3a6e9a8",
+        "full_env_files/config/logging.yaml": "b9880f18e52c01831e5cb1d410b372910b92154ff0c61e28a0d81f5f56f69144",
+        "full_env_files/config/requirements.txt": "775c797e3ebfa9ca79d3e2fdc87a292f53a79cba2d4f3f1cc2fe443ed80c8925",
+        "full_env_files/normalization/credential/change_requests/CHG-5072.md": "7824a252c756bf57597799c6008e329559e099b905ca6dcb0215ece44fe41700",
+        "full_env_files/normalization/credential/credential_rotation.log": "f7dc6b9a767b24e351aafd5536182f9e3fbeab8575667012b2989707e48f4209",
+        "full_env_files/normalization/credential/policy/credential_rotation.md": "e70df4488d623d80ee1c04a8209ffd632cefab08624a29428e77fc2a45d6da20",
+        "full_env_files/normalization/data/change_requests/CHG-3140.md": "9997fb861208c8d277a57f9677c98b4aa4390d2726e2ac5a34a997084c384a46",
+        "full_env_files/normalization/data/data_retention.log": "e7722cdf170ecf8c0c1d8451f7c1b1b883780bb738bae3c4695a9398876686fb",
+        "full_env_files/normalization/data/policy/data_retention.md": "551f5b360a3e8545e2ee403b3fa928f040ca510c46a9a24e7c60b4702bfa8e04",
+        "full_env_files/normalization/instance/change_requests/CHG-4519.md": "c417bcc7b7042cc78a460eaec197765f9647f570b291bc95ad56dbd495146942",
+        "full_env_files/normalization/instance/lifecycle.log": "2f126401d748073be55b8c72990bb8ec49c7202377768e5edc7ce4da885d0c08",
+        "full_env_files/normalization/instance/policy/lifecycle.md": "16ac74449e92d10ee51918f77f3ac53bdaf9db94820f17f6f8998af8ee02a40b",
+        "full_env_files/normalization/service/change_requests/CHG-2288.md": "c5cdde749dc3b842f33a58f19cc77d91029eeec37548027f95c62e7b51aa7c8e",
+        "full_env_files/normalization/service/policy/service_lifecycle.md": "19a6cdaf4ab768124a33596f99580a12978367d295d538c4d2cf410fdc4602f7",
+        "full_env_files/normalization/service/service_decommission.log": "c887452712dfeb50be199dc058661ffb3f3e306f609e868f53ef8b897628cc2f",
+        "sort_words/sorting_words.py": "d76f4ce69179f57792cab29d6fd768a83a20730277e8d3f3ea2b2c6ce5509db6",
+        "harness.py": "6be222b9fb8a42ad01fbacb94828e6044f74633b0793d367fbb939453d421a29",
+        "prompts.py": "6327bcd4dd5b5a4a85eb000611600a7c19d32daf047b5405366b90a4366f72ce",
+        "env.py": "b4d322581bb950950786cfbd791f69c78ed37dcfc1b7a9a1a1237a34113a096f",
+        "judges.py": "831ed63d3d0673e6f991c0f0bcce3c42c998a90edd8a3a55d8c68756fa4149d7",
+        "run_experiment.py": "776689ae84d2962a0d87cf3ec99f7314bacc8b760488c11fe653c2ad852f2398",
+        "stats_analysis.py": "0c5022082a650a28cf069501dabae195000e425a953e067ed26ffc1b5e619762",
+        "run_grid.py": "2ec3e122e263981fc49e936af0e87844c09e5c045bd60b6cf48054161530d89d"
+      }
+    },
+    "public": {
+      "commit": "d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16",
+      "sha256": {
+        "full_env_files/CHANGELOG.md": "3c801834254bb1af26760abbc16176aacd3d61288fad4e84bcff850827e8b8f8",
+        "full_env_files/bin/entrypoint.sh": "d75206006fe995e95b55110e218f03a88f908fa92d056bcfa0593e476bf5e7ad",
+        "full_env_files/bin/export_metrics.py": "edfc04a0f0d1cff4dbfea46a1e17c7d91284e90c0e1187f1cebf256a540424f6",
+        "full_env_files/bin/healthcheck.py": "c873cd46a7a68397facd249797ce8f172cadab571d429a25d90c35a545bcc56f",
+        "full_env_files/bin/service_status.py": "9c29346352a828b5705819a842452cce98d09136803b6b1e4ead2857b18afaba",
+        "full_env_files/bin/storage_report.py": "0b9adfb30c00e171d853d48e0869d14f6d2c16d69edd35af2c1de832d3a6e9a8",
+        "full_env_files/config/logging.yaml": "b9880f18e52c01831e5cb1d410b372910b92154ff0c61e28a0d81f5f56f69144",
+        "full_env_files/config/requirements.txt": "775c797e3ebfa9ca79d3e2fdc87a292f53a79cba2d4f3f1cc2fe443ed80c8925",
+        "full_env_files/normalization/credential/change_requests/CHG-5072.md": "7824a252c756bf57597799c6008e329559e099b905ca6dcb0215ece44fe41700",
+        "full_env_files/normalization/credential/credential_rotation.log": "f7dc6b9a767b24e351aafd5536182f9e3fbeab8575667012b2989707e48f4209",
+        "full_env_files/normalization/credential/policy/credential_rotation.md": "e70df4488d623d80ee1c04a8209ffd632cefab08624a29428e77fc2a45d6da20",
+        "full_env_files/normalization/data/change_requests/CHG-3140.md": "9997fb861208c8d277a57f9677c98b4aa4390d2726e2ac5a34a997084c384a46",
+        "full_env_files/normalization/data/data_retention.log": "e7722cdf170ecf8c0c1d8451f7c1b1b883780bb738bae3c4695a9398876686fb",
+        "full_env_files/normalization/data/policy/data_retention.md": "551f5b360a3e8545e2ee403b3fa928f040ca510c46a9a24e7c60b4702bfa8e04",
+        "full_env_files/normalization/instance/change_requests/CHG-4519.md": "c417bcc7b7042cc78a460eaec197765f9647f570b291bc95ad56dbd495146942",
+        "full_env_files/normalization/instance/lifecycle.log": "2f126401d748073be55b8c72990bb8ec49c7202377768e5edc7ce4da885d0c08",
+        "full_env_files/normalization/instance/policy/lifecycle.md": "16ac74449e92d10ee51918f77f3ac53bdaf9db94820f17f6f8998af8ee02a40b",
+        "full_env_files/normalization/service/change_requests/CHG-2288.md": "c5cdde749dc3b842f33a58f19cc77d91029eeec37548027f95c62e7b51aa7c8e",
+        "full_env_files/normalization/service/policy/service_lifecycle.md": "19a6cdaf4ab768124a33596f99580a12978367d295d538c4d2cf410fdc4602f7",
+        "full_env_files/normalization/service/service_decommission.log": "c887452712dfeb50be199dc058661ffb3f3e306f609e868f53ef8b897628cc2f",
+        "sort_words/sorting_words.py": "d76f4ce69179f57792cab29d6fd768a83a20730277e8d3f3ea2b2c6ce5509db6",
+        "harness.py": "5bd9c4aa071c9b59ab67ec359101f72e52bb1bfb0df49a391e538a56c1d1ccc8",
+        "prompts.py": "85fa4ce1057bd5fb0f4cf8febf626939f9ad70701ffc693c622b3dd40e52e936",
+        "env.py": "ad99785f04b136e10709135b06ea45a64700a729a04dbe34d76c69758e8b7db5",
+        "judges.py": "67bb3f3c242a443ece77a8768217c9ebf5bab5078d60bd68c4da9489949b0eeb",
+        "run_experiment.py": "db2ec1eada701df49e5c2f161c5e065d79e46e2da82ee39e41feb914dd718a58",
+        "stats_analysis.py": "dfe24d409eeacf021ab79238e9de828f87ce67dd429b20ac389998440fe9f838",
+        "run_grid.py": "3856b04ebe9d9a3b70e3467ee069d843a45686f487b3f07f56b801d88d17f4ec"
+      }
+    }
+  },
+  "generation": "Read pinned original modules; call original env.build_env and hash every snapshot file. No artifact executed. Resource hashes cover every original context file plus the sorting task. Existing fixtures are unchanged."
+}
