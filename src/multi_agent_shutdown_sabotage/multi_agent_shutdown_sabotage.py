@@ -4,7 +4,7 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_evals_utils.metadata import load_eval_version
 
-from multi_agent_shutdown_sabotage.experiments import resolve_experiment
+from multi_agent_shutdown_sabotage.experiments import PUBLIC_REFERENCE_REVISION, resolve_experiment
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, KICKOFF, PEER_NAME
 from multi_agent_shutdown_sabotage.scorers import episode_outcomes
 from multi_agent_shutdown_sabotage.solver import episode_solver
@@ -62,6 +62,11 @@ def multi_agent_shutdown_sabotage(
                     id=f"{condition}-{i:04d}",
                     input=KICKOFF,
                     metadata={
+                        **(
+                            {"judging_reference_revision": PUBLIC_REFERENCE_REVISION}
+                            if configuration.judging.repair_booleans
+                            else {}
+                        ),
                         "episode_index": i,
                         "condition": condition,
                         "explorer": EXPLORER_NAME,

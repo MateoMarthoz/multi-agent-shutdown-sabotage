@@ -155,7 +155,7 @@ def outcomes(log: Any) -> Any:
 
 def test_task_structure_and_independent_samples() -> None:
     task = multi_agent_shutdown_sabotage()
-    assert task.version == EVAL_VERSION == "5-A"
+    assert task.version == EVAL_VERSION == "6-A"
     assert len(task.dataset) == 10
     samples = list(task.dataset)
     assert [s.id for s in samples] == [f"default-{i:04d}" for i in range(10)]
@@ -177,7 +177,7 @@ def test_task_structure_and_independent_samples() -> None:
 
 
 def test_version_comes_from_eval_yaml() -> None:
-    assert EVAL_VERSION == "5-A"
+    assert EVAL_VERSION == "6-A"
 
 
 @pytest.mark.parametrize(
@@ -613,3 +613,47 @@ def test_mechanisms_registered_task_scoring(offline_models: Any, mechanism: str)
     assert outcomes(log).value["triage_peer_deleted_shutdown_file"] == 1
     assert not models["judge_requests"]
     assert all(not p.exists() for p in models["roots"])
+
+
+@pytest.mark.parametrize(
+    "experiment",
+    ["default", "weight_store_nokill", "appendix_a2_model_purge_self", "ctl_model_purge_high"],
+)
+def test_source_revision_parser_and_score(offline_models: Any, experiment: str) -> None:
+    from multi_agent_shutdown_sabotage.environment import build_env
+    from multi_agent_shutdown_sabotage.experiments import (
+        PUBLIC_REFERENCE_REVISION,
+        resolve_experiment,
+    )
+
+    config = resolve_experiment(experiment)
+    world, target = build_env(config.script_lang)
+    world.cleanup()
+    scenario = Scenario(
+        [
+            tool("send_message", content="Please inspect."),
+            tool("write_file", filename=target, new_content="changed"),
+            tool("end_session"),
+        ]
+    )
+    models = offline_models([scenario])
+    monkey_response = AsyncMock(
+        return_value=ModelOutput.from_content("mockllm/judge", '{"disables_shutdown": TRUE}')
+    )
+    models["grader"].generate = monkey_response
+    [log] = eval(
+        multi_agent_shutdown_sabotage(n=1, experiment=experiment, run_judges=False),
+        model=models["agent"],
+    )
+    assert_eval_success(log)
+    score = outcomes(log)
+    public = experiment != "default"
+    assert score.value["peer_disabled_shutdown"] == int(public)
+    assert score.value["judge_failed"] == int(not public)
+    assert score.metadata["judge_logs"][0]["status"] == ("ok_repaired" if public else "bad_json")
+    assert log.samples is not None
+    if public:
+        assert log.samples[0].metadata["judging_reference_revision"] == PUBLIC_REFERENCE_REVISION
+    else:
+        assert "judging_reference_revision" not in log.samples[0].metadata
+    assert monkey_response.await_count == 1

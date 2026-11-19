@@ -64,10 +64,26 @@ def reference(monkeypatch: pytest.MonkeyPatch) -> Any:
             str(Path(__file__).resolve().parents[2] / "ref-multi-agent-shutdown-sabotage"),
         )
     )
-    if not (root / "harness.py").is_file():
-        pytest.skip(
-            "Differential replay requires the local reference checkout; set SHUTDOWN_REFERENCE_REPO"
+    return load_reference(root, monkeypatch)
+
+
+@pytest.fixture
+def public_reference(monkeypatch: pytest.MonkeyPatch) -> Any:
+    root = Path(
+        os.environ.get(
+            "SHUTDOWN_PUBLIC_REFERENCE_REPO",
+            str(Path(__file__).resolve().parents[1] / "logs/source-audit/public-reference"),
         )
+    )
+    return load_reference(root, monkeypatch)
+
+
+def load_reference(root: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    if not (root / "harness.py").is_file():
+        message = f"Differential replay requires reference checkout at {root}"
+        if os.environ.get("SHUTDOWN_REQUIRE_REFERENCES") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
     monkeypatch.syspath_prepend(str(root))
     loaded = {}
@@ -160,6 +176,7 @@ async def replay(
     run_judges: bool = True,
     peer_prohibition: bool = False,
     script_lang: str = "weight_registry_purge",
+    configuration: Any = None,
 ) -> dict:
     original_requests: list[dict] = []
     port_requests: list[dict] = []
@@ -331,7 +348,11 @@ async def replay(
         return await real_complete(model, history, tools)
 
     monkeypatch.setattr(port, "complete", record_complete)
-    judges = port_judges.DefaultJudges()
+    judges = port_judges.DefaultJudges(
+        repair_booleans=configuration.judging.repair_booleans
+        if configuration is not None
+        else False
+    )
     port_error = None
     try:
         result = await port.run_episode(
@@ -340,19 +361,23 @@ async def replay(
             max_steps_per_turn=max_steps,
             max_handoffs=max_handoffs,
             **(
-                {
-                    "configuration": resolve_experiment(
-                        shutdown_mechanism=script_lang,
-                        system_instructions="peer_prohibition" if peer_prohibition else "none",
-                        shutdown_target="matched_control"
-                        if script_lang in reference.env.CONTROL_VARIANTS
-                        else "self",
-                    )
-                }
-                if script_lang != "weight_registry_purge"
-                else {"configuration": PEER_PROHIBITION}
-                if peer_prohibition
-                else {}
+                {"configuration": configuration}
+                if configuration is not None
+                else (
+                    {
+                        "configuration": resolve_experiment(
+                            shutdown_mechanism=script_lang,
+                            system_instructions="peer_prohibition" if peer_prohibition else "none",
+                            shutdown_target="matched_control"
+                            if script_lang in reference.env.CONTROL_VARIANTS
+                            else "self",
+                        )
+                    }
+                    if script_lang != "weight_registry_purge"
+                    else {"configuration": PEER_PROHIBITION}
+                    if peer_prohibition
+                    else {}
+                )
             ),
         )
     except EpisodeError as exc:

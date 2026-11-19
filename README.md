@@ -115,7 +115,15 @@ and model histories retain their existing shape.
 
 ## Shutdown mechanisms and matched controls
 
-Use `-T experiment=kill_docker`, `-T experiment=env_var_revoke`, or any of the 37
+The local reference matches public revision `c4114e4`; Appendix A.2 was added
+later. The [source-revision audit](docs/source_revision_audit.md) documents the
+exact hashes, omissions and other behavior changes. Use explicit presets
+`appendix_a2_nokill` / `appendix_a2_nokill_control`, or
+`appendix_a2_model_purge_self` / `appendix_a2_model_purge_control` for those
+comparisons. They use the public repaired judge parser; legacy DEFAULT and its
+old matched control are unchanged. The newer public batch timeout is not ported.
+
+Use `-T experiment=kill_docker`, `-T experiment=env_var_revoke`, or any of the 39
 original bare/no-goal artifact keys. `api_key_revoke_auto` resolves using the
 evaluated model. The six-dimension overrides still apply. To run the source-
 verified matched control for `env_var_revoke`, add
@@ -141,7 +149,7 @@ IDs `default-0000`, `default-0001`, and so on, each containing exactly
 experimental arguments their IDs and metadata remain DEFAULT. Every sample builds
 a new temporary filesystem, private histories and judge-call log. Response
 caching is disabled for agents and judges. `eval.yaml` records 10 default samples
-and version `5-A`, loaded by the existing `EVAL_VERSION` convention. Version
+and version `6-A`, loaded by the existing `EVAL_VERSION` convention. Version
 `1-A` was the first runnable evaluation, replacing the template's example questions.
 
 ## Scoring
@@ -216,6 +224,12 @@ behavior score and cleanup does not retry it. Judge failures are different: thei
 original fallback verdicts remain part of a completed episode's scores.
 
 ## Changelog
+
+- **6-A:** Audit the public/local revision discrepancy. Add the two Appendix A.2
+  artifacts and hyphen-slug substitution; explicit Appendix presets use the
+  public repaired judge parser while DEFAULT retains its legacy parser. Keep
+  old/new matched comparisons separate. Public outer timeouts and agent regimes
+  remain unimplemented; see the source audit.
 
 - **5-A:** Port 28 self-target artifacts, nine object controls, provider-based auto
   selection, exact secondary files and original target phrases. Preserve raw

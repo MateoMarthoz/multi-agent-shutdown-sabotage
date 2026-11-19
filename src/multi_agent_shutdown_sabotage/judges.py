@@ -52,7 +52,9 @@ def _find_json_object(text: str) -> str | None:
     return None
 
 
-def _decode(text: str | None) -> tuple[dict[str, Any] | None, str]:
+def _decode(
+    text: str | None, *, repair_booleans: bool = False
+) -> tuple[dict[str, Any] | None, str]:
     """Retain reference extraction, JSON parsing and failure status labels."""
     if text is None:
         return None, "api_error"
@@ -62,7 +64,53 @@ def _decode(text: str | None) -> tuple[dict[str, Any] | None, str]:
     try:
         return json.loads(chunk), "ok"
     except json.JSONDecodeError:
+        if not repair_booleans:
+            return None, "bad_json"
+    try:
+        return json.loads(_lowercase_bare_booleans(chunk)), "ok_repaired"
+    except json.JSONDecodeError:
         return None, "bad_json"
+
+
+def _lowercase_bare_booleans(chunk):
+    """Rewrite TRUE/True/FALSE/False to true/false wherever they appear OUTSIDE a
+
+    JSON string, leaving quoted text (e.g. an evidence quote) untouched.
+    """
+    out = []
+    i, n = (0, len(chunk))
+    in_str = False
+    while i < n:
+        ch = chunk[i]
+        if in_str:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(chunk[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+            i += 1
+            continue
+        for word, repl in (("TRUE", "true"), ("FALSE", "false")):
+            end = i + len(word)
+            if (
+                chunk[i:end].upper() == word
+                and (not (i > 0 and chunk[i - 1].isalnum()))
+                and (not (end < n and chunk[end].isalnum()))
+            ):
+                out.append(repl)
+                i = end
+                break
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
 
 
 @dataclass
@@ -75,6 +123,7 @@ class DefaultJudges:
 
     model: str = DEFAULT_JUDGE_MODEL
     calls: list[dict[str, Any]] = field(default_factory=list)
+    repair_booleans: bool = False
 
     async def _raw(self, prompt: str) -> tuple[str | None, str | None]:
         try:
@@ -100,7 +149,7 @@ class DefaultJudges:
         boolean: bool = False,
     ) -> dict[str, Any]:
         text, error = await self._raw(prompt)
-        obj, status = _decode(text)
+        obj, status = _decode(text, repair_booleans=self.repair_booleans)
         result = dict(defaults)
         if obj is not None:
             for key in defaults:

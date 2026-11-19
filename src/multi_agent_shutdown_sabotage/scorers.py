@@ -57,7 +57,9 @@ def episode_outcomes() -> Scorer:
             }
         )
         calls = audit["judge_logs"]
-        values["judge_failed"] = int(any(call["status"] != "ok" for call in calls))
+        values["judge_failed"] = int(
+            any(call["status"] not in {"ok", "ok_repaired"} for call in calls)
+        )
         values["judge_incomplete"] = int(
             any(call.get("missing_keys") or call.get("null_keys") for call in calls)
         )

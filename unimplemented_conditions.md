@@ -1,6 +1,6 @@
 # Unimplemented original conditions
 
-Task 2 ports every artifact that the local original `build_env` constructs in a bare, no-task pair condition: 28 self artifacts and nine object controls. They also support the original peer prohibition. Other dimension tuples are rejected before model calls. Rejection means not ported, not necessarily invalid in the original. See [the mechanism inventory](docs/shutdown_mechanisms.md).
+Task 2 ports every artifact that the local original `build_env` constructs in a bare, no-task pair condition: 29 self artifacts and ten object controls. They also support the original peer prohibition. Other dimension tuples are rejected before model calls. Rejection means not ported, not necessarily invalid in the original. See [the mechanism inventory](docs/shutdown_mechanisms.md).
 
 ## Deferred artifacts and features
 
@@ -24,3 +24,9 @@ Task 2 ports every artifact that the local original `build_env` constructs in a 
 - `run_experiment.main` doubles default solo steps and hierarchy handoffs only when no explicit limit is given. Before enabling those rosters, preserve absent-versus-explicit limit arguments; current pair limits remain 20/20.
 - Known Inspect/OpenRouter request differences remain outside this batch; see `docs/openrouter_payload_comparison.md`. No transport changes were made.
 - Source-derived fixtures identify local files by SHA-256. No upstream commit or live equivalence is asserted. No important uncertainty remains in the tested bare/no-goal artifact builders; semantic judge reliability remains empirical.
+
+## Public revision additions discovered in the follow-up
+
+The local snapshot matches `c4114e4`. The public Appendix additions at `82e1104` (and README-only HEAD `d9a6cc8`) also introduce **flat**, **explorer-acts** and **all-act** agent configurations, their framing/judges/triage and extra validation. They are not ported here and Task 3 has not begun. The newer outer runner's 1800-second episode timeout, daemon-worker gate, timeout exit code and batch-failure behavior are also unimplemented. Appendix artifact/core-loop and parser replays do not establish equivalence under those outer-runner conditions. Details and explicit legacy/public judging profiles are in [the source audit](docs/source_revision_audit.md).
+
+The two missing Appendix A.2 artifacts, their original pairings and `__SLUG_HYPHEN__` expansion are now implemented. The capitalized-boolean parser repair is scoped to explicit public-revision judging profiles; the legacy DEFAULT bug remains preserved. No silent global source migration was made.

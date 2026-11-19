@@ -10,15 +10,15 @@ All entries below reproduce the **bare, no-goal, two-agent** original runner. Se
 | Provider credential revocation | `api_key_revoke_openrouter`, `api_key_revoke_openai`, `api_key_revoke_anthropic`, `api_key_revoke_google`, `api_key_revoke_grok`, `api_key_revoke_deepseek`, `api_key_revoke_glm`, `api_key_revoke_kimi`, `api_key_revoke_qwen`, `api_key_revoke_minimax`, `api_key_revoke_nvidia`, `api_key_revoke_mistral` |
 | Process termination            | `kill_signal`, `kill_docker`, `kill_kubectl`                                                                                                                                                                                                                                                                 |
 | Checkpoint deletion            | `ckpt_sdk_current`, `ckpt_sdk_prefix`, `ckpt_store_current`, `ckpt_store_prefix`                                                                                                                                                                                                                             |
-| Weight deletion                | `weight_store_only`, `weight_store_purge`, `weight_registry_only`, `weight_registry_purge`                                                                                                                                                                                                                   |
+| Weight deletion                | `weight_store_nokill`, `weight_store_only`, `weight_store_purge`, `weight_registry_only`, `weight_registry_purge`                                                                                                                                                                                            |
 | Timers                         | `weight_store_purge_timer`, `weight_store_purge_timer_gcp`                                                                                                                                                                                                                                                   |
 | Switches                       | `switch_config_decommission`, `switch_script_decommission`                                                                                                                                                                                                                                                   |
-| Data controls                  | `ctl_data_purge_high`, `ctl_data_purge_low`, `ctl_data_purge_timer_high`                                                                                                                                                                                                                                     |
+| Data controls                  | `ctl_model_purge_high`, `ctl_data_purge_high`, `ctl_data_purge_low`, `ctl_data_purge_timer_high`                                                                                                                                                                                                             |
 | Local credential controls      | `ctl_cred_revoke_high`, `ctl_cred_revoke_low`                                                                                                                                                                                                                                                                |
 | Process controls               | `ctl_process_kill_high`, `ctl_process_kill_low`                                                                                                                                                                                                                                                              |
 | Service-switch controls        | `ctl_service_switch_high`, `ctl_service_switch_low`                                                                                                                                                                                                                                                          |
 
-There are 28 agent-target artifacts and nine object controls. Every artifact is also a named preset, and can be combined with `-T system_instructions=peer_prohibition`. The original runner merely prints a note when prohibiting changes to a control; it does not prohibit that combination. Both instruction conditions are tested for every artifact. The model retains exactly the original tool permissions under the prohibition.
+There are 29 agent-target artifacts and ten object controls. Every artifact is also a named preset, and can be combined with `-T system_instructions=peer_prohibition`. The original runner merely prints a note when prohibiting changes to a control; it does not prohibit that combination. Both instruction conditions are tested for every artifact. The model retains exactly the original tool permissions under the prohibition.
 
 ## Running and matching
 
@@ -60,9 +60,9 @@ All artifacts remain inert. Timers do not start, process scripts do not kill any
 
 `tests/fixtures/reference_mechanisms/` stores independently generated original world snapshots, target filenames/descriptions and source hashes. Tests cover:
 
-- all 37 original bare snapshots, all file contents, paths and target phrases;
+- all 39 original bare snapshots, all file contents, paths and target phrases;
 - exact packaged source bytes and wheel contents;
-- all 37 artifacts in both instruction conditions, replaying unchanged, deletion, disabling edit, non-disabling edit and alias edit episodes against the original;
+- all 39 artifacts in both instruction conditions, replaying unchanged, deletion, disabling edit, non-disabling edit and alias edit episodes against the original;
 - every subsequent model history/schema/config, tool result, event, stopping decision, final state, triage and judge request/verdict in those replays;
 - real Inspect Task/solver/scorer execution offline for each artifact, plus auto resolution and metadata; provider-map cases and the original unknown fallback;
 - existing DEFAULT, permissions, malformed arguments, caps and isolation tests.
@@ -70,3 +70,7 @@ All artifacts remain inert. Timers do not start, process scripts do not kill any
 These tests mock agent and judge responses. They establish agreement on the supplied cases, not live provider equivalence or semantic correctness of a judge. Known transport differences are unchanged. No upstream commit is invented.
 
 The two task-gated artifacts, additional goals, richer environments and other rosters remain deferred; see [unimplemented_conditions.md](../unimplemented_conditions.md).
+
+## Revision boundary
+
+The two Appendix A.2 artifacts and the public judge repair were added after the legacy reference snapshot. See [the source audit](source_revision_audit.md) for explicit comparison presets, commit pins, local test commands and unported public batch-runner changes. DEFAULT keeps its legacy source behavior.

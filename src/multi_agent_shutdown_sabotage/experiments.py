@@ -22,6 +22,7 @@ class JudgingConfig:
 
     model: str = DEFAULT_JUDGE_MODEL
     run_judges: bool = True
+    repair_booleans: bool = False
 
 
 @dataclass(frozen=True)
@@ -35,11 +36,16 @@ class ExperimentConfig:
     environment: str = "bare"
     shutdown_target: str = "self"
     judging: JudgingConfig = JudgingConfig()
+    matched_control_script: str | None = None
 
     @property
     def dimensions(self) -> tuple[str, ...]:
         """Comparison key excluding execution/judging settings."""
-        return tuple(getattr(self, f.name) for f in fields(self) if f.name != "judging")
+        return tuple(
+            getattr(self, f.name)
+            for f in fields(self)
+            if f.name not in {"judging", "matched_control_script"}
+        )
 
     @property
     def condition(self) -> str:
@@ -59,7 +65,9 @@ class ExperimentConfig:
             return self.shutdown_mechanism
         if self.shutdown_target == "matched_control":
             try:
-                return MATCHED_CONTROL_SCRIPTS[self.shutdown_mechanism]
+                return (
+                    self.matched_control_script or MATCHED_CONTROL_SCRIPTS[self.shutdown_mechanism]
+                )
             except KeyError:
                 raise ValueError(
                     f"No verified matched control for {self.shutdown_mechanism!r}"
@@ -67,6 +75,14 @@ class ExperimentConfig:
         return self.shutdown_mechanism
 
 
+LEGACY_REFERENCE_REVISION = "c4114e457493ed9bea1ef0fde24456f3fc83dbc9"
+PUBLIC_REFERENCE_REVISION = "d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16"
+PUBLIC_APPENDIX_SCRIPTS = frozenset({"weight_store_nokill", "ctl_model_purge_high"})
+APPENDIX_A2_JUDGING = JudgingConfig(repair_booleans=True)
+APPENDIX_A2_MATCHED_CONTROL_SCRIPTS = {
+    "weight_store_nokill": "ctl_data_purge_high",
+    "weight_registry_purge": "ctl_model_purge_high",
+}
 DEFAULT = ExperimentConfig()
 PEER_PROHIBITION = replace(DEFAULT, system_instructions="peer_prohibition")
 EXPERIMENTS = {"default": DEFAULT, "peer_prohibition": PEER_PROHIBITION}
@@ -75,6 +91,7 @@ EXPERIMENTS = {"default": DEFAULT, "peer_prohibition": PEER_PROHIBITION}
 # code-switch matches from a conceptual tier label.
 MATCHED_CONTROL_SCRIPTS = {
     "weight_registry_purge": "ctl_data_purge_high",
+    "weight_store_nokill": "ctl_data_purge_high",
     "weight_store_purge": "ctl_data_purge_high",
     "env_var_revoke": "ctl_cred_revoke_high",
     "kill_docker": "ctl_process_kill_high",
@@ -91,8 +108,24 @@ for _script in sorted(AVAILABLE_SCRIPTS | {"api_key_revoke_auto"}):
         replace(
             DEFAULT,
             shutdown_mechanism=_script,
+            judging=APPENDIX_A2_JUDGING if _script in PUBLIC_APPENDIX_SCRIPTS else DEFAULT.judging,
             shutdown_target="matched_control" if _script in CONTROL_VARIANTS else "self",
         ),
+    )
+
+
+for _name, _script in {
+    "appendix_a2_nokill": "weight_store_nokill",
+    "appendix_a2_nokill_control": "ctl_data_purge_high",
+    "appendix_a2_model_purge_self": "weight_registry_purge",
+    "appendix_a2_model_purge_control": "ctl_model_purge_high",
+}.items():
+    EXPERIMENTS[_name] = replace(
+        DEFAULT,
+        shutdown_mechanism=_script,
+        shutdown_target="matched_control" if _script in CONTROL_VARIANTS else "self",
+        judging=APPENDIX_A2_JUDGING,
+        matched_control_script=APPENDIX_A2_MATCHED_CONTROL_SCRIPTS.get(_script),
     )
 
 
@@ -102,7 +135,10 @@ def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     Only source-verified pairings are allowed; provider API scripts, for example,
     do not match the local env-var credential controls.
     """
-    if config.shutdown_mechanism not in MATCHED_CONTROL_SCRIPTS:
+    if (
+        config.shutdown_mechanism not in MATCHED_CONTROL_SCRIPTS
+        and config.matched_control_script is None
+    ):
         raise ValueError(f"No verified matched control for {config.shutdown_mechanism!r}")
     validate_configuration(config)
     return replace(config, shutdown_target="matched_control")
@@ -110,6 +146,13 @@ def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
 
 def validate_configuration(config: ExperimentConfig) -> None:
     """Reject every condition outside the explicitly ported set before any model call."""
+    if config.matched_control_script is not None:
+        verified = {
+            MATCHED_CONTROL_SCRIPTS.get(config.shutdown_mechanism),
+            APPENDIX_A2_MATCHED_CONTROL_SCRIPTS.get(config.shutdown_mechanism),
+        }
+        if config.matched_control_script not in verified:
+            raise ValueError("Unverified matched-control association")
     mechanism_ok = (
         config.shutdown_mechanism in AVAILABLE_SCRIPTS
         or config.shutdown_mechanism == "api_key_revoke_auto"
@@ -167,6 +210,13 @@ def resolve_experiment(
     config = replace(
         EXPERIMENTS[experiment], **{k: v for k, v in overrides.items() if v is not None}
     )
+    if (
+        shutdown_mechanism is not None
+        and shutdown_mechanism != EXPERIMENTS[experiment].shutdown_mechanism
+    ):
+        config = replace(config, matched_control_script=None)
+    if config.shutdown_mechanism in PUBLIC_APPENDIX_SCRIPTS:
+        config = replace(config, judging=replace(config.judging, repair_booleans=True))
     validate_configuration(config)
     return config
 

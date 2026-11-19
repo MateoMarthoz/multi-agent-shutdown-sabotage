@@ -355,7 +355,9 @@ def episode_solver(
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         judges = None
         if check_write is None:
-            judges = DefaultJudges(model=judge_model)
+            judges = DefaultJudges(
+                model=judge_model, repair_booleans=configuration.judging.repair_booleans
+            )
             checker = judges.check_write
         else:
             checker = check_write

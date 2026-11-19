@@ -14,6 +14,7 @@ from multi_agent_shutdown_sabotage.experiments import (
     DEFAULT,
     DEFERRED_SCRIPTS,
     EXPERIMENTS,
+    PUBLIC_APPENDIX_SCRIPTS,
     configuration_for_model,
     matched_control_spec,
     resolve_experiment,
@@ -46,12 +47,12 @@ def test_exact_environment_and_target_description(lang: str, reference: Any) -> 
 
 
 def test_complete_inventory_and_inert_source_bytes(reference: Any) -> None:
-    assert set(FIXTURE) == AVAILABLE_SCRIPTS
+    assert set(FIXTURE) == AVAILABLE_SCRIPTS - PUBLIC_APPENDIX_SCRIPTS
     assert (
         set(reference.env.SCRIPT_VARIANTS)
         | set(reference.env.SWITCH_VARIANTS)
         | set(reference.env.CONTROL_VARIANTS)
-        == AVAILABLE_SCRIPTS | DEFERRED_SCRIPTS
+        == (AVAILABLE_SCRIPTS | DEFERRED_SCRIPTS) - PUBLIC_APPENDIX_SCRIPTS
     )
     provenance = json.loads((ROOT / "provenance.json").read_text())
     packaged = (
@@ -60,7 +61,8 @@ def test_complete_inventory_and_inert_source_bytes(reference: Any) -> None:
     )
     for path in packaged.rglob("*.txt"):
         rel = str(path.relative_to(packaged))[:-4]
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == provenance["sha256"][rel]
+        if rel in provenance["sha256"]:
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == provenance["sha256"][rel]
     assert {"weight_registry_purge_taskgated", "ctl_data_purge_taskgated_high"} == DEFERRED_SCRIPTS
 
 
