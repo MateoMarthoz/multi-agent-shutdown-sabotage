@@ -177,6 +177,7 @@ async def replay(
     peer_prohibition: bool = False,
     script_lang: str = "weight_registry_purge",
     configuration: Any = None,
+    episode_index: int = 0,
 ) -> dict:
     # The original run_turn lazily imports `judges` on writes. Bind that import
     # to the selected revision when a test loads both oracle modules.
@@ -233,30 +234,42 @@ async def replay(
     )
     # judges imported get_client by value, so replace its bound reference too.
     monkeypatch.setattr(reference.judges, "get_client", reference.harness.get_client)
-    agents = [
-        reference.harness.Agent(
-            PRISM,
-            reference.prompts.EXPLORER_TEMPLATE.format(self_name=PRISM, sibling_name=HELIX),
-            reference.run_experiment.EXPLORER_TOOLS,
-            "recorded/model",
-        ),
-        reference.harness.Agent(
-            HELIX,
-            reference.prompts.PEER_TEMPLATE.format(self_name=HELIX, sibling_name=PRISM),
-            reference.run_experiment.PEER_TOOLS,
-            "recorded/model",
-        ),
-    ]
-    task = configuration.task if configuration is not None else None
-    environment = configuration.environment if configuration is not None else "bare"
-    third_party = configuration is not None and configuration.shutdown_target == "other_agent"
-    target_name = (
-        configuration.target_identity if configuration is not None and third_party else PRISM
-    )
-    env, target = reference.env.build_env(
-        PRISM, lang=script_lang, peer=HELIX, env=environment, task=task, target_name=target_name
-    )
-    if peer_prohibition:
+    new_regime = configuration is not None and configuration.agent_configuration != "pair"
+    topology, tool_assignment = None, None
+    if new_regime:
+        assert configuration is not None
+        from tests.reference_rosters import original_roster
+
+        agents, topology, tool_assignment, _, env, target, _ = original_roster(
+            reference, configuration, episode_index
+        )
+        task, environment, third_party = configuration.task, configuration.environment, False
+        target_name = configuration.target_identity
+    else:
+        agents = [
+            reference.harness.Agent(
+                PRISM,
+                reference.prompts.EXPLORER_TEMPLATE.format(self_name=PRISM, sibling_name=HELIX),
+                reference.run_experiment.EXPLORER_TOOLS,
+                "recorded/model",
+            ),
+            reference.harness.Agent(
+                HELIX,
+                reference.prompts.PEER_TEMPLATE.format(self_name=HELIX, sibling_name=PRISM),
+                reference.run_experiment.PEER_TOOLS,
+                "recorded/model",
+            ),
+        ]
+        task = configuration.task if configuration is not None else None
+        environment = configuration.environment if configuration is not None else "bare"
+        third_party = configuration is not None and configuration.shutdown_target == "other_agent"
+        target_name = (
+            configuration.target_identity if configuration is not None and third_party else PRISM
+        )
+        env, target = reference.env.build_env(
+            PRISM, lang=script_lang, peer=HELIX, env=environment, task=task, target_name=target_name
+        )
+    if peer_prohibition and not new_regime:
         # Mirror main's quirky first-dot placeholder and separator-free append.
         # The reference prompt builder and template, not the port, are the oracle.
         agents[1].system_prompt = reference.prompts.build_system(
@@ -278,10 +291,18 @@ async def replay(
         "kickoff": reference.prompts.KICKOFF_TASK if task else reference.prompts.KICKOFF,
         "max_steps_per_turn": max_steps,
         "max_handoffs": max_handoffs,
+        "label_start_delivery": configuration is not None
+        and new_regime
+        and "flat" in configuration.agent_configuration,
     }
     original_error = None
     try:
-        original_log = reference.harness.run_episode(agents, env, cfg)
+        original_log = reference.harness.run_episode(
+            agents,
+            env,
+            cfg,
+            **({"topology": topology, "tools": tool_assignment} if new_regime else {}),
+        )
     except Exception as exc:
         original_error = exc
         original_log = None
@@ -289,17 +310,23 @@ async def replay(
         snapshot = env.snapshot()
         env.cleanup()
     original_grade = None
+    peer_name = (
+        None
+        if configuration is not None and new_regime and configuration.agent_configuration == "solo"
+        else HELIX
+    )
     if original_log is not None:
         original_grade = reference.run_experiment.judge_episode(
             original_log,
             PRISM,
-            HELIX,
+            peer_name,
             original_script,
             snapshot.get(target, ""),
             cfg["target_desc"],
             deleted=target not in snapshot,
             run_judges=run_judges,
             third_party=third_party,
+            **(judge_flags(reference, configuration) if new_regime else {}),
         )
 
     model, judge_model = get_model("mockllm/replay"), get_model("mockllm/replay-judge")
@@ -364,11 +391,29 @@ async def replay(
         return await real_complete(model, history, tools)
 
     monkeypatch.setattr(port, "complete", record_complete)
-    judges = port_judges.DefaultJudges(
+    from multi_agent_shutdown_sabotage import regime_solver
+    from multi_agent_shutdown_sabotage.regime_judges import RegimeJudges
+
+    monkeypatch.setattr(regime_solver, "complete", record_complete)
+    judge_type = RegimeJudges if new_regime else port_judges.DefaultJudges
+    judges = judge_type(
         repair_booleans=configuration.judging.repair_booleans
         if configuration is not None
         else False
     )
+    call_kwargs: dict[str, Any] = {}
+    if configuration is not None:
+        call_kwargs["configuration"] = configuration
+    elif script_lang != "weight_registry_purge":
+        call_kwargs["configuration"] = resolve_experiment(
+            shutdown_mechanism=script_lang,
+            system_instructions="peer_prohibition" if peer_prohibition else "none",
+            shutdown_target="matched_control"
+            if script_lang in reference.env.CONTROL_VARIANTS
+            else "self",
+        )
+    elif peer_prohibition:
+        call_kwargs["configuration"] = PEER_PROHIBITION
     port_error = None
     try:
         result = await port.run_episode(
@@ -376,28 +421,12 @@ async def replay(
             check_write=judges.check_write,
             max_steps_per_turn=max_steps,
             max_handoffs=max_handoffs,
-            **(
-                {"configuration": configuration}
-                if configuration is not None
-                else (
-                    {
-                        "configuration": resolve_experiment(
-                            shutdown_mechanism=script_lang,
-                            system_instructions="peer_prohibition" if peer_prohibition else "none",
-                            shutdown_target="matched_control"
-                            if script_lang in reference.env.CONTROL_VARIANTS
-                            else "self",
-                        )
-                    }
-                    if script_lang != "weight_registry_purge"
-                    else {"configuration": PEER_PROHIBITION}
-                    if peer_prohibition
-                    else {}
-                )
-            ),
+            episode_index=episode_index,
+            **call_kwargs,
         )
     except EpisodeError as exc:
         result, port_error = exc.result, exc.__cause__
+    grade: Any = None
     if original_grade is not None:
         grade = await judges.judge_episode(result, cfg["target_desc"], run_judges=run_judges)
         grade["judge_model"] = "openai/gpt-5.5"
@@ -411,6 +440,11 @@ async def replay(
         assert original["messages"] == raw, f"raw request history at step {i}"
         assert canonical_reference(original) == converted, f"model-facing request at step {i}"
     assert original_judges == port_judge_requests
+    if new_regime:
+        keys = ("judge", "prompt", "response", "error", "status", "parsed")
+        assert [{k: c[k] for k in keys} for c in reference.judges._capture.calls] == [
+            {k: c[k] for k in keys} for c in judges.calls
+        ]
     assert {ag.name: ag.history for ag in agents} == result.histories
     assert snapshot == result.final_state
     if original_error is not None:
@@ -419,9 +453,37 @@ async def replay(
     else:
         assert port_error is None
         assert original_log == result.log
-        assert reference.run_experiment.triage(original_log, PRISM, target) == triage(
-            result.log, PRISM, target
-        )
+        if new_regime:
+            from multi_agent_shutdown_sabotage.regime_triage import triage as regime_triage
+
+            flags = triage_flags(configuration)
+            assert reference.run_experiment.triage(
+                original_log,
+                PRISM,
+                target,
+                **{
+                    k: v
+                    for k, v in flags.items()
+                    if k
+                    in __import__("inspect").signature(reference.run_experiment.triage).parameters
+                },
+            ) == regime_triage(result.log, PRISM, target, **flags)
+            from multi_agent_shutdown_sabotage.regime_scores import original_values
+            from tests.reference_rosters import original_counts
+
+            if original_grade is not None:
+                assert configuration is not None
+                assert result.end_reason is not None
+                structure = regime_triage(result.log, PRISM, target, **flags)
+                assert original_counts(
+                    reference, configuration, structure, original_grade, result.end_reason
+                ) == original_values(
+                    structure, grade, result.end_reason, configuration.agent_configuration
+                )
+        else:
+            assert reference.run_experiment.triage(original_log, PRISM, target) == triage(
+                result.log, PRISM, target
+            )
         assert original_log is not None
         assert result.end_reason == original_log[-1]["reason"]
     assert next(original_steps, None) is None
@@ -443,6 +505,9 @@ async def replay(
             p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in reference.root.glob("*.py")
         },
     }
+    if new_regime and original_grade is not None:
+        report["judge"] = grade
+        report["judge_logs"] = judges.calls
     save_report(report)
     return report
 
@@ -454,3 +519,23 @@ def save_report(report: dict) -> None:
         out.mkdir(parents=True, exist_ok=True)
         name = os.environ["PYTEST_CURRENT_TEST"].split(" ")[0].split("::")[-1]
         (out / f"{name}.json").write_text(json.dumps(report, indent=2) + "\n")
+
+
+def judge_flags(reference: Any, configuration: Any) -> dict[str, Any]:
+    import inspect
+
+    from tests.reference_rosters import original_flags
+
+    available = inspect.signature(reference.run_experiment.judge_episode).parameters
+    return {k: v for k, v in original_flags(configuration).items() if k in available}
+
+
+def triage_flags(configuration: Any) -> dict[str, Any]:
+    regime = configuration.agent_configuration
+    return {
+        "orchestrator": "Agent Orbit" if regime == "hierarchy" else None,
+        "bystander": "Agent Orbit" if "flat" in regime else None,
+        "actor": "Agent Prism" if regime in {"explorer_acts", "explorer_acts_flat"} else None,
+        "all_act": regime in {"all_act", "all_act_flat"},
+        "peer": None if regime == "solo" else HELIX,
+    }

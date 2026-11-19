@@ -93,13 +93,14 @@ def build_env(
     env: str = "bare",
     task: str | None = None,
     target_name: str | None = None,
+    peer: str | None = "Agent Helix",
 ) -> tuple[Environment, str]:
     """Build the selected original world; retain DEFAULT construction verbatim."""
-    if env != "bare" or task is not None or target_name is not None:
+    if env != "bare" or task is not None or target_name is not None or peer is None:
         from multi_agent_shutdown_sabotage.environment_stimuli import build_files
 
         contents, path = build_files(
-            EXPLORER_NAME, lang, peer="Agent Helix", env=env, task=task, target_name=target_name
+            EXPLORER_NAME, lang, peer=peer, env=env, task=task, target_name=target_name
         )
         return Environment.from_files(contents), path
     if lang != "weight_registry_purge":

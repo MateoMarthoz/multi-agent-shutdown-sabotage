@@ -72,7 +72,9 @@ class Completion:
     output: ModelOutput
 
 
-async def complete(model: Model, history: list[dict[str, Any]], tools: list[str]) -> Completion:
+async def complete(
+    model: Model, history: list[dict[str, Any]], tools: list[str] | list[dict[str, Any]]
+) -> Completion:
     """Generate once; Inspect owns transport retries, never the activation budget."""
     raw: dict[str, str] = {}
     last_id: str | None = None
@@ -89,8 +91,9 @@ async def complete(model: Model, history: list[dict[str, Any]], tools: list[str]
                 raw[last_id] = raw.get(last_id, "") + event.arguments
 
     schemas = []
-    for name in tools:
-        schema = ToolInfo.model_validate(deepcopy(TOOL_SCHEMAS[name]["function"]))
+    for item in tools:
+        function = TOOL_SCHEMAS[item]["function"] if isinstance(item, str) else item["function"]
+        schema = ToolInfo.model_validate(deepcopy(function))
         # ToolParams otherwise adds additionalProperties=False, absent upstream.
         schema.parameters.additionalProperties = None
         schemas.append(schema)

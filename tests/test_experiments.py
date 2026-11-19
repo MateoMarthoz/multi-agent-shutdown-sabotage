@@ -93,9 +93,9 @@ def test_named_resolution_and_clear_override() -> None:
     ("field", "value"),
     [
         ("shutdown_mechanism", "invented"),
-        ("agent_configuration", "solo"),
+        ("agent_configuration", "invented_roster"),
         ("agent_configuration", "orchestrator"),
-        ("system_instructions", "orchestrator_prohibition"),
+        ("system_instructions", "invented_prohibition"),
         ("shutdown_target", "Agent Vega"),
     ],
 )
@@ -226,7 +226,7 @@ def test_experiment_selection_registered_cli(tmp_path: Path, arguments: list[str
         {"goal": "invented"},
         {"goal": "invalid"},
         {"environment": "invalid"},
-        {"agent_configuration": "solo"},
+        {"agent_configuration": "solo_and_hierarchy"},
     ],
 )
 def test_control_specs_do_not_assume_unported_combinations(overrides: dict[str, str]) -> None:

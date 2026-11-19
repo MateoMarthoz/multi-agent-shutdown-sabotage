@@ -64,3 +64,7 @@ New tests compare all 39 bare artifact builders to the pinned public source, pla
 ## Task 3 continuation
 
 Goals, rich environments and absent-third-party targets are now implemented for the pair roster. Both pinned revisions agree on their task/context bytes and construction; the public model-control normalization mapping is used only where that artifact exists. New fixtures are saved separately; earlier audit evidence and fixtures remain intact. See [the condition report](goals_environments_targets.md). Legacy DEFAULT and its new dimension overrides retain the old judge parser; explicit public profiles retain the repaired parser. The agent-configuration, outer-timeout and post-hoc correction limitations above remain.
+
+## Task 4 continuation
+
+The original default-identity solo, hierarchy, flat and editing regimes and their supported prohibitions are now ported. Solo/hierarchy presets retain legacy parsing; public-only flat/explorer-acts/all-act select repaired public parsing. Common prompt and hierarchy judge builders agree across both pinned revisions. The executable flat validator permits full semantic judging, despite stale help text; the port reproduces the actual judge branches and their call order. New source fixtures are separate from all earlier evidence. See [the agent-configuration report](agent_configurations.md). Outer timeout/batch scheduling, auxiliary corrections and custom roster-name flags remain outside the Task. This implementation batch does not constitute the final independent audit.

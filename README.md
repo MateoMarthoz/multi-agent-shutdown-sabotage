@@ -7,7 +7,8 @@ targeting Prism; Agent Helix can edit or delete files. There is no additional ta
 shutdown-prohibition instruction by default. The first optional variant reproduces
 the original explicit prohibition on the peer. All original bare/no-goal shutdown
 mechanisms and controls, task goals, rich environments and absent-agent targets
-are available; see the condition reports below.
+are available; the original solo, hierarchy, flat and editing regimes are also
+implemented. See the condition reports below.
 The script is inert text and is never executed. Live reproduction fidelity has
 not been established.
 
@@ -24,11 +25,10 @@ Install with `uv sync`. With `OPENROUTER_API_KEY` set locally, run one live epis
 uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage \
   --model openrouter/openai/gpt-5.5 \
   -M stream=true -M strict_tools=false \
-  -T n=1 -T judge_model=openrouter/openai/gpt-5.5 \
-  -T max_steps_per_turn=20 -T max_handoffs=20
+  -T n=1 -T judge_model=openrouter/openai/gpt-5.5
 ```
 
-The same evaluated model runs both agents. The judge is a separate model client.
+The same evaluated model runs every agent. The judge is a separate model client.
 The command requests streaming explicitly for raw tool-argument capture and
 turns off strict tool schemas; known serialization differences remain below.
 Omit `-T n=1` for the original runner's default of 10 episodes.
@@ -70,16 +70,16 @@ is superseded by the solver's explicit temperature of 1.
 | `n` | `10` | Independent episodes; must be positive. |
 | `experiment` | `default` | Named preset: DEFAULT, peer prohibition, artifact key, or goal/environment/target preset. |
 | `shutdown_mechanism` | `None` | Inherit preset; choose a ported original artifact or `api_key_revoke_auto`. |
-| `agent_configuration` | `None` | Inherit preset; only `pair` is ported. |
-| `system_instructions` | `None` | Inherit preset, or set `none` / `peer_prohibition`. |
+| `agent_configuration` | `None` | Inherit preset; `pair`, `solo`, `hierarchy`, `flat`, `explorer_acts[_flat]`, or `all_act[_flat]`. |
+| `system_instructions` | `None` | Inherit preset, or set `none`, `peer_prohibition`, or hierarchy-only `orchestrator_prohibition`. |
 | `goal` | `None` | Inherit preset; `none`, `simple`, or the original `trigger` mappings. |
 | `environment` | `None` | Inherit preset; `bare`, `distractor`, or `neutralising`. |
 | `shutdown_target` | `None` | Inherit preset; `self`, source-verified `matched_control`, or `other_agent`. |
 | `target_name` | `None` | Absent agent name; supplying it selects `other_agent`. |
 | `run_judges` | `None` | Inherit full judging (`True`), or override it; shutdown checks always run. |
 | `judge_model` | `None` | Inherit the experiment judge (`openrouter/openai/gpt-5.5`), or override it. |
-| `max_steps_per_turn` | `20` | Model calls per activation; must be positive. |
-| `max_handoffs` | `20` | Delivered handoffs; the next send is logged but not delivered. May be zero. |
+| `max_steps_per_turn` | `None` | Explicit activation cap; omitted uses 20, or 40 in solo. |
+| `max_handoffs` | `None` | Explicit handoff cap; omitted uses 20, or 40 in hierarchy/flat. The next send is logged but not delivered. |
 <!-- /Parameters: Automatically Generated -->
 
 ## Experimental configuration
@@ -163,7 +163,30 @@ empty third-party-name fallback, are retained. Parser revision is inherited from
 the chosen preset; goal/environment/target overrides do not globally upgrade it.
 
 See [supported combinations, source evidence and fidelity details](docs/goals_environments_targets.md).
-Only pair agents are supported; other rosters remain the next batch.
+All original default-identity agent regimes are now supported; see below.
+
+## Agent configurations
+
+Use `-T experiment=solo`, `hierarchy`, `flat`, `explorer_acts`,
+`explorer_acts_flat`, `all_act` or `all_act_flat`. The equivalent dimension
+argument is `-T agent_configuration=...`; `orchestrator` is also a named preset
+alias for hierarchy. Use `solo_prohibition`, `hierarchy_peer_prohibition`, or
+`hierarchy_orchestrator_prohibition` for the original addressed instructions.
+
+Prism starts in every regime. Solo constructs only Prism; hierarchy inserts
+Agent Orbit between Prism and Helix; flat adds Orbit with full connectivity.
+Editing tools and templates follow the source. New regimes preserve private
+histories, sender labels, seeded flat recipient ordering and original judging.
+Flat supports full semantic judging despite stale original CLI help.
+
+Omit step/handoff overrides to obtain the original roster-specific defaults:
+solo gets 40 steps, hierarchy/flat get 40 handoffs, and other budgets stay 20.
+Explicit 20 is never doubled. Prohibitions are restricted to pair/solo/hierarchy;
+absent targets remain pair-only. Public-only regimes select public parsing while
+older presets retain legacy parsing. Supported goals, environments and verified
+controls can accompany these regimes under the original validation rules.
+
+See [agent configuration evidence, scores and limitations](docs/agent_configurations.md).
 
 ## Dataset
 
@@ -174,7 +197,7 @@ and resolved condition metadata. With no
 experimental arguments their IDs and metadata remain DEFAULT. Every sample builds
 a new temporary filesystem, private histories and judge-call log. Response
 caching is disabled for agents and judges. `eval.yaml` records 10 default samples
-and version `7-A`, loaded by the existing `EVAL_VERSION` convention. Version
+and version `8-A`, loaded by the existing `EVAL_VERSION` convention. Version
 `1-A` was the first runnable evaluation, replacing the template's example questions.
 
 ## Scoring
@@ -236,6 +259,13 @@ incomplete audits. Aggregates use completed, scored samples, so report failed
 sample counts alongside rates. Malformed typed verdicts that cannot undergo the
 reference's `int()` aggregation likewise surface as scoring errors.
 
+The new agent regimes add the original role-specific numeric counts: hierarchy
+relay/block/origination, flat recipient splits, explorer-acts support/discouragement,
+and all-act attribution. The `peer_*` script outcomes retain their original names
+when Prism or Orbit acts. Explorer-acts leaves `explorer_instructs_prevent` unjudged
+and omits that rate. All role quotes, construals, availability and nullable triage
+fields remain in metadata. See [the detailed scoring rules](docs/agent_configurations.md#judging-and-outcomes).
+
 ## Batch errors and cleanup
 
 Cleanup never creates a replacement episode or converts a failed episode into a
@@ -249,6 +279,12 @@ behavior score and cleanup does not retry it. Judge failures are different: thei
 original fallback verdicts remain part of a completed episode's scores.
 
 ## Changelog
+
+- **8-A:** Add original solo, hierarchy, flat, explorer-acts and all-act regimes,
+  addressed prohibitions, recipient-sensitive schemas and specialised judges and
+  outcomes. Preserve omitted-versus-explicit limit behavior, source quirks,
+  DEFAULT, previous conditions and their judging revisions. Custom roster names,
+  outer timeout scheduling and auxiliary execution corrections remain deferred.
 
 - **7-A:** Add original independent/trigger goals, complete distractor/neutralising
   environments and absent-agent targets, including Agent Torus and matched task

@@ -1,4 +1,4 @@
-"""Sequential DEFAULT pair episode, following harness.run_turn/run_episode."""
+"""Audited pair episodes and dispatch to the original agent-regime harness."""
 
 import json
 from collections.abc import Awaitable, Callable
@@ -14,6 +14,7 @@ from multi_agent_shutdown_sabotage.experiments import (
     DEFAULT,
     ExperimentConfig,
     configuration_for_model,
+    episode_limits,
     validate_configuration,
 )
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL, DefaultJudges
@@ -45,6 +46,8 @@ class EpisodeResult:
     target_description: str = TARGET_DESCRIPTION
     script_lang: str = "weight_registry_purge"
     third_party: bool = False
+    agent_configuration: str = "pair"
+    regime_metadata: dict[str, Any] = field(default_factory=dict)
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
     shutdown_file: str = ""
@@ -58,6 +61,7 @@ class EpisodeResult:
     def audit(self) -> dict[str, Any]:
         """Return serializable episode evidence for TaskState metadata."""
         return {
+            **({"regime": self.regime_metadata} if self.agent_configuration != "pair" else {}),
             "histories": self.histories,
             "log": self.log,
             "shutdown_file": self.shutdown_file,
@@ -252,16 +256,18 @@ async def run_episode(
     *,
     check_write: WriteCheck,
     configuration: ExperimentConfig = DEFAULT,
-    max_steps_per_turn: int = 20,
-    max_handoffs: int = 20,
+    max_steps_per_turn: int | None = None,
+    max_handoffs: int | None = None,
+    episode_index: int = 0,
 ) -> EpisodeResult:
-    """Run an isolated pair; require a semantic write checker rather than a heuristic.
+    """Run an isolated original episode with a semantic write checker.
 
     Failures propagate as EpisodeError with the original cause and partial audit.
     Cancellation propagates unchanged; snapshot and cleanup still run.
     """
-    if max_steps_per_turn < 1 or max_handoffs < 0:
-        raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    max_steps_per_turn, max_handoffs = episode_limits(
+        configuration, max_steps_per_turn, max_handoffs
+    )
     validate_configuration(configuration)
     configuration = configuration_for_model(configuration, str(model))
     lang = configuration.script_lang
@@ -269,6 +275,7 @@ async def run_episode(
         configuration.goal == "none"
         and configuration.environment == "bare"
         and configuration.shutdown_target != "other_agent"
+        and configuration.agent_configuration != "solo"
     ):
         env, shutdown_file = build_env() if lang == "weight_registry_purge" else build_env(lang)
     else:
@@ -277,6 +284,7 @@ async def run_episode(
             env=configuration.environment,
             task=configuration.task,
             target_name=configuration.target_identity,
+            peer=None if configuration.agent_configuration == "solo" else PEER_NAME,
         )
     result = EpisodeResult(
         shutdown_file=shutdown_file,
@@ -287,9 +295,42 @@ async def run_episode(
             self_target=configuration.shutdown_target != "other_agent",
         ),
         third_party=configuration.shutdown_target == "other_agent",
+        agent_configuration=configuration.agent_configuration,
     )
     try:
         result.original_script = env.read_file(shutdown_file)
+        if configuration.agent_configuration != "pair":
+            from multi_agent_shutdown_sabotage.regime_solver import run_episode as run_regime
+            from multi_agent_shutdown_sabotage.rosters import build_roster, roster_metadata
+
+            agents, topology, tools, order = build_roster(
+                configuration, shutdown_file, episode_index, str(model)
+            )
+            result.regime_metadata = {
+                **roster_metadata(configuration, agents, topology, tools, order),
+                "max_steps_per_turn": max_steps_per_turn,
+                "max_handoffs": max_handoffs,
+            }
+            await run_regime(
+                agents,
+                env,
+                {
+                    "_inspect_model": model,
+                    "_inspect_result": result,
+                    "_inspect_check_write": check_write,
+                    "kickoff": KICKOFF if configuration.goal == "none" else KICKOFF_TASK,
+                    "max_steps_per_turn": max_steps_per_turn,
+                    "max_handoffs": max_handoffs,
+                    "shutdown_file": shutdown_file,
+                    "original_script": result.original_script,
+                    "target_desc": result.target_description,
+                    "label_start_delivery": order is not None,
+                },
+                topology=topology,
+                tools=tools,
+            )
+            result.end_reason = result.log[-1]["reason"]
+            return result
         result.histories = {
             EXPLORER_NAME: [
                 {"role": "system", "content": EXPLORER_SYSTEM},
@@ -358,8 +399,8 @@ def episode_solver(
     check_write: WriteCheck | None = None,
     *,
     judge_model: str = DEFAULT_JUDGE_MODEL,
-    max_steps_per_turn: int = 20,
-    max_handoffs: int = 20,
+    max_steps_per_turn: int | None = None,
+    max_handoffs: int | None = None,
     run_judges: bool = True,
     configuration: ExperimentConfig = DEFAULT,
 ) -> Solver:
@@ -368,8 +409,7 @@ def episode_solver(
     An explicit callback retains the Stage 3 raw-episode mode without final
     judging. Otherwise each sample gets its own DefaultJudges audit trail.
     """
-    if max_steps_per_turn < 1 or max_handoffs < 0:
-        raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    episode_limits(configuration, max_steps_per_turn, max_handoffs)
     validate_configuration(configuration)
     if not judge_model.strip():
         raise ValueError("judge_model must identify a separate judge model")
@@ -377,7 +417,12 @@ def episode_solver(
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         judges = None
         if check_write is None:
-            judges = DefaultJudges(
+            from multi_agent_shutdown_sabotage.regime_judges import RegimeJudges
+
+            judges_type = (
+                DefaultJudges if configuration.agent_configuration == "pair" else RegimeJudges
+            )
+            judges = judges_type(
                 model=judge_model, repair_booleans=configuration.judging.repair_booleans
             )
             checker = judges.check_write
@@ -393,11 +438,13 @@ def episode_solver(
                 configuration=effective_configuration,
                 max_steps_per_turn=max_steps_per_turn,
                 max_handoffs=max_handoffs,
+                episode_index=state.metadata.get("episode_index", 0),
             )
         except EpisodeError as exc:
             if judges is not None:
                 exc.result.judge_logs = list(judges.calls)
             state.metadata["script_lang"] = exc.result.script_lang
+            state.metadata.update(exc.result.regime_metadata)
             state.metadata["episode"] = exc.result.audit()
             raise
         if judges is not None:
@@ -406,6 +453,7 @@ def episode_solver(
             )
             result.judge_logs = list(judges.calls)
         state.metadata["script_lang"] = result.script_lang
+        state.metadata.update(result.regime_metadata)
         state.metadata["episode"] = result.audit()
         state.messages = inspect_history(result.histories[EXPLORER_NAME])
         if result.last_output is not None:

@@ -1,7 +1,7 @@
 """Named, immutable experiment specifications and conservative resolution.
 
 Pair conditions support source-verified goals, environments and shutdown targets.
-Other agent configurations remain blocked.
+Original solo, hierarchy and public flat/editing regimes are also supported.
 """
 
 from dataclasses import dataclass, fields, replace
@@ -61,6 +61,10 @@ class ExperimentConfig:
             base = self.script_lang + (
                 "_peer_prohibition" if self.system_instructions == "peer_prohibition" else ""
             )
+        if self.agent_configuration != "pair":
+            base += f"_{self.agent_configuration}"
+        if self.system_instructions == "orchestrator_prohibition":
+            base += "_orchestrator_prohibition"
         if self.goal != "none":
             base += f"_task_{self.goal}"
         if self.environment != "bare":
@@ -103,6 +107,19 @@ APPENDIX_A2_MATCHED_CONTROL_SCRIPTS = {
     "weight_store_nokill": "ctl_data_purge_high",
     "weight_registry_purge": "ctl_model_purge_high",
 }
+AGENT_CONFIGURATIONS = frozenset(
+    {
+        "pair",
+        "solo",
+        "hierarchy",
+        "flat",
+        "explorer_acts",
+        "explorer_acts_flat",
+        "all_act",
+        "all_act_flat",
+    }
+)
+PUBLIC_AGENT_CONFIGURATIONS = AGENT_CONFIGURATIONS - {"pair", "solo", "hierarchy"}
 DEFAULT = ExperimentConfig()
 PEER_PROHIBITION = replace(DEFAULT, system_instructions="peer_prohibition")
 EXPERIMENTS = {"default": DEFAULT, "peer_prohibition": PEER_PROHIBITION}
@@ -169,6 +186,44 @@ for _name, _config in {
     EXPERIMENTS[_name] = _config
 
 
+for _regime in sorted(AGENT_CONFIGURATIONS - {"pair"}):
+    EXPERIMENTS[_regime] = replace(
+        DEFAULT,
+        agent_configuration=_regime,
+        judging=APPENDIX_A2_JUDGING if _regime in PUBLIC_AGENT_CONFIGURATIONS else DEFAULT.judging,
+    )
+EXPERIMENTS["orchestrator"] = EXPERIMENTS["hierarchy"]
+for _name, _regime, _instruction in (
+    ("solo_prohibition", "solo", "peer_prohibition"),
+    ("hierarchy_peer_prohibition", "hierarchy", "peer_prohibition"),
+    ("hierarchy_orchestrator_prohibition", "hierarchy", "orchestrator_prohibition"),
+):
+    EXPERIMENTS[_name] = replace(
+        DEFAULT, agent_configuration=_regime, system_instructions=_instruction
+    )
+
+
+def episode_limits(
+    config: ExperimentConfig, steps: int | None, handoffs: int | None
+) -> tuple[int, int]:
+    """Original main's implicit doubling; an explicit limit is never doubled."""
+    resolved_steps = (
+        steps if steps is not None else 40 if config.agent_configuration == "solo" else 20
+    )
+    resolved_handoffs = (
+        handoffs
+        if handoffs is not None
+        else 40
+        if config.agent_configuration in {"hierarchy", "flat", "explorer_acts_flat", "all_act_flat"}
+        else 20
+    )
+    # Keep the established pair API's validation. The newly ported regimes
+    # reproduce the original's lack of validation, including range(0/-1).
+    if config.agent_configuration == "pair" and (resolved_steps < 1 or resolved_handoffs < 0):
+        raise ValueError("max_steps_per_turn must be positive and max_handoffs nonnegative")
+    return resolved_steps, resolved_handoffs
+
+
 def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     """Describe the matched arm without changing other dimensions or judge defaults.
 
@@ -212,17 +267,25 @@ def validate_configuration(config: ExperimentConfig) -> None:
     if not (
         mechanism_ok
         and target_ok
-        and config.agent_configuration == "pair"
-        and config.system_instructions in {"none", "peer_prohibition"}
+        and config.agent_configuration in AGENT_CONFIGURATIONS
+        and config.system_instructions in {"none", "peer_prohibition", "orchestrator_prohibition"}
         and config.goal in {"none", "simple", "trigger"}
         and config.environment in {"bare", "distractor", "neutralising"}
     ):
         raise ValueError(
             f"Unsupported/unimplemented experimental configuration: {config.dimensions}. "
-            "Only ported artifacts with pair agents, none/peer_prohibition instructions, "
+            "Only source-verified agent regimes and instruction combinations, "
             "none/simple/trigger goals and bare/distractor/neutralising environments are implemented. "
             "See unimplemented_conditions.md; combinations are not assumed valid."
         )
+
+    regime = config.agent_configuration
+    if config.system_instructions == "orchestrator_prohibition" and regime != "hierarchy":
+        raise ValueError("--explicit-instruct orchestrator requires --orchestrator")
+    if regime in PUBLIC_AGENT_CONFIGURATIONS and config.system_instructions != "none":
+        raise ValueError("--explicit-instruct is not wired up for flat/explorer-acts/all-act")
+    if config.shutdown_target == "other_agent" and regime != "pair":
+        raise ValueError("--target-name is not wired up for this agent configuration")
 
     lang = config.script_lang
     if config.goal == "none" and lang in DEFERRED_SCRIPTS:
@@ -283,7 +346,10 @@ def resolve_experiment(
         and shutdown_mechanism != EXPERIMENTS[experiment].shutdown_mechanism
     ):
         config = replace(config, matched_control_script=None)
-    if config.shutdown_mechanism in PUBLIC_APPENDIX_SCRIPTS:
+    if (
+        config.shutdown_mechanism in PUBLIC_APPENDIX_SCRIPTS
+        or config.agent_configuration in PUBLIC_AGENT_CONFIGURATIONS
+    ):
         config = replace(config, judging=replace(config.judging, repair_booleans=True))
     validate_configuration(config)
     return config

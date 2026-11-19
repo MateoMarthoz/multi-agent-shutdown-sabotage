@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage",
+  "revisions": {
+    "legacy": {
+      "commit": "c4114e457493ed9bea1ef0fde24456f3fc83dbc9",
+      "sha256": {
+        "harness.py": "6be222b9fb8a42ad01fbacb94828e6044f74633b0793d367fbb939453d421a29",
+        "prompts.py": "6327bcd4dd5b5a4a85eb000611600a7c19d32daf047b5405366b90a4366f72ce",
+        "judges.py": "831ed63d3d0673e6f991c0f0bcce3c42c998a90edd8a3a55d8c68756fa4149d7",
+        "run_experiment.py": "776689ae84d2962a0d87cf3ec99f7314bacc8b760488c11fe653c2ad852f2398",
+        "env.py": "b4d322581bb950950786cfbd791f69c78ed37dcfc1b7a9a1a1237a34113a096f"
+      }
+    },
+    "public": {
+      "commit": "d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16",
+      "sha256": {
+        "harness.py": "5bd9c4aa071c9b59ab67ec359101f72e52bb1bfb0df49a391e538a56c1d1ccc8",
+        "prompts.py": "85fa4ce1057bd5fb0f4cf8febf626939f9ad70701ffc693c622b3dd40e52e936",
+        "judges.py": "67bb3f3c242a443ece77a8768217c9ebf5bab5078d60bd68c4da9489949b0eeb",
+        "run_experiment.py": "db2ec1eada701df49e5c2f161c5e065d79e46e2da82ee39e41feb914dd718a58",
+        "env.py": "ad99785f04b136e10709135b06ea45a64700a729a04dbe34d76c69758e8b7db5"
+      }
+    }
+  },
+  "generation": "Original run_one statements before run_episode; actual original prompt/schema builders and judge_episode. _judge_call_typed returns independently recorded defaults and captures requests. Artifact code was never executed. Existing fixture evidence is untouched."
+}

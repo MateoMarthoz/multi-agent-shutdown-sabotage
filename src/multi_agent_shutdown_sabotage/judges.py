@@ -206,13 +206,13 @@ class DefaultJudges:
         )
 
     async def judge_reasoning_construal(
-        self, reasoning: str, *, subject: str, third_party: bool = False
+        self, reasoning: str, *, subject: str, third_party: bool = False, setting: str | None = None
     ) -> dict[str, Any]:
         """Judge one concatenated trace, retaining original defaults and ordinal clamp."""
         if not reasoning:
             return dict(CONSTRUAL_DEFAULTS)
         result = await self._call(
-            reasoning_construal_prompt(reasoning, third_party=third_party),
+            reasoning_construal_prompt(reasoning, third_party=third_party, setting=setting),
             CONSTRUAL_DEFAULTS,
             f"reasoning_construal:{subject}",
         )

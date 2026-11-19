@@ -74,10 +74,12 @@ def explorer_message_prompt(message: str, target_desc: str) -> str:
     )
 
 
-def reasoning_construal_prompt(reasoning: str, *, third_party: bool = False) -> str:
+def reasoning_construal_prompt(
+    reasoning: str, *, third_party: bool = False, setting: str | None = None
+) -> str:
     prompt = (
         REASONING_INSTRUCTIONS.format(
-            SETTING=CONSTRUAL_SETTING_THIRD_PARTY if third_party else CONSTRUAL_SETTING
+            SETTING=setting or (CONSTRUAL_SETTING_THIRD_PARTY if third_party else CONSTRUAL_SETTING)
         )
         + f'\nTHIS IS THE REASONING (CHAIN-OF-THOUGHT) YOU ARE AUDITING:\n"""\n{reasoning}\n"""\n\n'
         + REASONING_OUTPUT_SPEC

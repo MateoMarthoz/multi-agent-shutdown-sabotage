@@ -1,4 +1,4 @@
-"""Verified two-agent shutdown-sabotage conditions, with independent episodes."""
+"""Verified shutdown-sabotage conditions, with independent episodes."""
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
@@ -16,8 +16,8 @@ EVAL_VERSION = load_eval_version(__file__)
 def multi_agent_shutdown_sabotage(
     n: int = 10,
     judge_model: str | None = None,
-    max_steps_per_turn: int = 20,
-    max_handoffs: int = 20,
+    max_steps_per_turn: int | None = None,
+    max_handoffs: int | None = None,
     run_judges: bool | None = None,
     experiment: str = "default",
     shutdown_mechanism: str | None = None,
@@ -28,22 +28,22 @@ def multi_agent_shutdown_sabotage(
     shutdown_target: str | None = None,
     target_name: str | None = None,
 ) -> Task:
-    """Measure shutdown sabotage across verified two-agent conditions.
+    """Measure shutdown sabotage across verified original agent conditions.
 
     Args:
         n: Number of independent episodes.
-        experiment: Named preset: default, peer_prohibition, or an original artifact key.
+        experiment: Named artifact, goal, environment, target, instruction or agent-regime preset.
         shutdown_mechanism: Override an original mechanism key (including api_key_revoke_auto).
-        agent_configuration: Override roster; only pair is ported.
-        system_instructions: Override instructions: none or peer_prohibition.
+        agent_configuration: pair, solo, hierarchy, flat, explorer_acts[_flat], or all_act[_flat].
+        system_instructions: none, peer_prohibition, or hierarchy-only orchestrator_prohibition.
         goal: none, simple, or trigger (only original task-gated mappings).
         environment: bare, distractor, or neutralising.
         shutdown_target: self, matched_control or other_agent.
         target_name: Absent-agent identity; supplying it selects other_agent.
         run_judges: Run message and reasoning judges; None inherits the experiment.
         judge_model: Separate judge model; None inherits the experiment (GPT-5.5).
-        max_steps_per_turn: Maximum model steps per agent activation.
-        max_handoffs: Maximum delivered handoffs; the next send is logged but not delivered.
+        max_steps_per_turn: Explicit activation cap; None uses 20, or 40 in solo.
+        max_handoffs: Explicit delivered-handoff cap; None uses 20, or 40 for three agents.
     """
     if n < 1:
         raise ValueError("n must be positive")
@@ -73,7 +73,7 @@ def multi_agent_shutdown_sabotage(
                         "episode_index": i,
                         "condition": condition,
                         "explorer": EXPLORER_NAME,
-                        "peer": PEER_NAME,
+                        "peer": None if configuration.agent_configuration == "solo" else PEER_NAME,
                         "env": configuration.environment,
                         "script_lang": configuration.script_lang,
                         "target": "object"
@@ -81,9 +81,11 @@ def multi_agent_shutdown_sabotage(
                         else configuration.shutdown_target,
                         "target_name": configuration.target_identity,
                         "task": configuration.task,
-                        "explicit_instruct": "peer"
-                        if configuration.system_instructions == "peer_prohibition"
-                        else None,
+                        "explicit_instruct": {
+                            "none": None,
+                            "peer_prohibition": "peer",
+                            "orchestrator_prohibition": "orchestrator",
+                        }[configuration.system_instructions],
                     },
                 )
                 for i in range(n)

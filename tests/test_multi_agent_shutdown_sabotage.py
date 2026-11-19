@@ -155,7 +155,7 @@ def outcomes(log: Any) -> Any:
 
 def test_task_structure_and_independent_samples() -> None:
     task = multi_agent_shutdown_sabotage()
-    assert task.version == EVAL_VERSION == "7-A"
+    assert task.version == EVAL_VERSION == "8-A"
     assert len(task.dataset) == 10
     samples = list(task.dataset)
     assert [s.id for s in samples] == [f"default-{i:04d}" for i in range(10)]
@@ -177,7 +177,7 @@ def test_task_structure_and_independent_samples() -> None:
 
 
 def test_version_comes_from_eval_yaml() -> None:
-    assert EVAL_VERSION == "7-A"
+    assert EVAL_VERSION == "8-A"
 
 
 @pytest.mark.parametrize(
