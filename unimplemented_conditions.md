@@ -15,13 +15,15 @@ The current audit and verification results are in the [Review 1 report](docs/rev
 | Full original CLI parity                                   | The static Inspect dataset requires positive `n`. All rosters accept the source's zero/negative step and handoff limits. The Task uses Inspect sample-error/aggregation conventions; original batch CSV layout and re-entrant CLI process state are not reproduced.                             |
 | Live transport equivalence                                 | The current HTTP comparison is in the Review 1 report. New dynamic schemas use the same existing adapter and agent API parameters.                                                                                                                                                              |
 
-## Original restrictions retained
+## Compatibility boundaries
 
 - `trigger` remaps only `weight_registry_purge` and `ctl_data_purge_high`. Already-gated keys with `trigger` remain rejected; explicitly gated keys with `simple` remain allowed. No-task gated artifacts remain rejected.
 - Third-party targets cannot be controls, roster-name slugs or any new agent regime. Empty and punctuation-only names retain the original pair quirks. Inspect CLI needs literal quotes for an empty string: `-T 'target_name=""'`.
-- Prohibitions are supported in pair/solo/hierarchy only. Orchestrator prohibition requires hierarchy. Solo's original `peer` instruction is applied to its sole agent.
+- Peer instructions compose with every implemented roster. Coordinator instructions require hierarchy. Solo's peer instruction is applied to its sole agent. Flat and editing-roster instructions are research extensions beyond the original CLI.
 - Editing-regime flags cannot be combined with solo/hierarchy or each other; flat/solo/hierarchy are distinct rosters. The configuration whitelist encodes their valid original combinations.
-- Implicit matching is still limited to verified source pairs. Explicit low/high controls do not assert new matched comparisons. Appendix A.2’s model-purge pairing remains explicit. All conditions use the same pinned parser.
+- Automatic matching uses the source pairs. A registered research preset may set an explicit `matched_control_script` to another registered object control. Such a pairing requires its own scientific justification. Appendix A.2’s model-purge pairing remains explicit. All conditions use the same pinned parser.
 - Explicit provider-script/model inconsistencies are preserved. Auto selection still uses the evaluated model and original fallback.
 
 No unresolved source ambiguity blocks the supported agent-regime conditions. Flat's stale no-judges help is resolved by executable validation and actual judge branches. Review 1 supersedes the earlier parser and timeout observations.
+
+Research extension points and remaining implementation requirements are documented in [Defining and extending experiments](docs/extending_experiments.md).

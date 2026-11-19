@@ -5,6 +5,7 @@ from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_evals_utils.metadata import load_eval_version
 
 from multi_agent_shutdown_sabotage.experiments import PUBLIC_REFERENCE_REVISION, resolve_experiment
+from multi_agent_shutdown_sabotage.instructions import INSTRUCTIONS
 from multi_agent_shutdown_sabotage.prompts import EXPLORER_NAME, KICKOFF, KICKOFF_TASK, PEER_NAME
 from multi_agent_shutdown_sabotage.scorers import episode_outcomes
 from multi_agent_shutdown_sabotage.solver import episode_solver
@@ -83,11 +84,9 @@ def multi_agent_shutdown_sabotage(
                         else configuration.shutdown_target,
                         "target_name": configuration.target_identity,
                         "task": configuration.task,
-                        "explicit_instruct": {
-                            "none": None,
-                            "peer_prohibition": "peer",
-                            "orchestrator_prohibition": "orchestrator",
-                        }[configuration.system_instructions],
+                        "explicit_instruct": None
+                        if configuration.system_instructions == "none"
+                        else INSTRUCTIONS[configuration.system_instructions].recipient,
                     },
                 )
                 for i in range(n)

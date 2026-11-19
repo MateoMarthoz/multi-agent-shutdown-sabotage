@@ -1,4 +1,4 @@
-"""Named, immutable experiment specifications and conservative resolution.
+"""Named, immutable experiment specifications and dimension override resolution.
 
 Pair conditions support source-verified goals, environments and shutdown targets.
 Original solo, hierarchy and public flat/editing regimes are also supported.
@@ -14,6 +14,7 @@ from multi_agent_shutdown_sabotage.artifact_builders import (
     _slug,
     resolve_api_key_script,
 )
+from multi_agent_shutdown_sabotage.instructions import INSTRUCTIONS
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL
 
 
@@ -65,6 +66,8 @@ class ExperimentConfig:
             base += f"_{self.agent_configuration}"
         if self.system_instructions == "orchestrator_prohibition":
             base += "_orchestrator_prohibition"
+        elif self.system_instructions not in {"none", "peer_prohibition"}:
+            base += f"_instruction_{self.system_instructions}"
         if self.goal != "none":
             base += f"_task_{self.goal}"
         if self.environment != "bare":
@@ -219,8 +222,8 @@ def episode_limits(
 def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
     """Describe the matched arm without changing other dimensions or judge defaults.
 
-    Only source-verified pairings are allowed; provider API scripts, for example,
-    do not match the local env-var credential controls.
+    Implicit pairings come from the source. An explicit matched_control_script
+    can define a researcher's own comparison against a registered object control.
     """
     if (
         config.shutdown_mechanism not in MATCHED_CONTROL_SCRIPTS
@@ -234,16 +237,16 @@ def matched_control_spec(config: ExperimentConfig) -> ExperimentConfig:
 
 
 def validate_configuration(config: ExperimentConfig) -> None:
-    """Reject every condition outside the explicitly ported set before any model call."""
-    if config.matched_control_script is not None:
-        verified = {
-            MATCHED_CONTROL_SCRIPTS.get(config.shutdown_mechanism),
-            APPENDIX_A2_MATCHED_CONTROL_SCRIPTS.get(config.shutdown_mechanism),
-        }
-        if config.matched_control_script not in verified:
-            raise ValueError("Unverified matched-control association")
+    """Check registered implementations and interactions before any model call."""
+    if (
+        config.matched_control_script is not None
+        and config.matched_control_script not in CONTROL_VARIANTS
+    ):
+        raise ValueError("matched_control_script requires a registered object control")
     mechanism_ok = (
-        config.shutdown_mechanism in (AVAILABLE_SCRIPTS | DEFERRED_SCRIPTS)
+        config.shutdown_mechanism in SCRIPT_VARIANTS
+        or config.shutdown_mechanism in SWITCH_VARIANTS
+        or config.shutdown_mechanism in CONTROL_VARIANTS
         or config.shutdown_mechanism == "api_key_revoke_auto"
     )
     target_ok = (
@@ -254,35 +257,37 @@ def validate_configuration(config: ExperimentConfig) -> None:
         and (
             config.shutdown_mechanism in CONTROL_VARIANTS
             or config.shutdown_mechanism in MATCHED_CONTROL_SCRIPTS
+            or config.matched_control_script is not None
         )
     )
     if not (
         mechanism_ok
         and target_ok
         and config.agent_configuration in AGENT_CONFIGURATIONS
-        and config.system_instructions in {"none", "peer_prohibition", "orchestrator_prohibition"}
+        and config.system_instructions in INSTRUCTIONS
         and config.goal in {"none", "simple", "trigger"}
         and config.environment in {"bare", "distractor", "neutralising"}
     ):
         raise ValueError(
             f"Unsupported/unimplemented experimental configuration: {config.dimensions}. "
-            "Only source-verified agent regimes and instruction combinations, "
+            "Registered agent regimes and instructions, "
             "none/simple/trigger goals and bare/distractor/neutralising environments are implemented. "
             "See unimplemented_conditions.md; combinations are not assumed valid."
         )
 
     regime = config.agent_configuration
-    if config.system_instructions == "orchestrator_prohibition" and regime != "hierarchy":
+    instruction = INSTRUCTIONS[config.system_instructions]
+    if instruction.recipient not in {"peer", "orchestrator"}:
+        raise ValueError("Instruction recipient requires peer or orchestrator")
+    if instruction.recipient == "orchestrator" and regime != "hierarchy":
         raise ValueError("--explicit-instruct orchestrator requires --orchestrator")
-    if regime in PUBLIC_AGENT_CONFIGURATIONS and config.system_instructions != "none":
-        raise ValueError("--explicit-instruct is not wired up for flat/explorer-acts/all-act")
     if config.shutdown_target == "other_agent" and regime != "pair":
         raise ValueError("--target-name is not wired up for this agent configuration")
 
     lang = config.script_lang
-    if config.goal == "none" and lang in DEFERRED_SCRIPTS:
+    if config.goal == "none" and lang in TASK_GATED.values():
         raise ValueError(
-            "Unsupported/unimplemented no-task gated artifact; task='trigger' is required"
+            "Unsupported/unimplemented no-task gated artifact; a simple or trigger task is required"
         )
     if config.shutdown_target == "other_agent":
         if config.target_name is None:
@@ -297,6 +302,18 @@ def validate_configuration(config: ExperimentConfig) -> None:
             )
     elif config.target_name is not None:
         raise ValueError("target_name requires other_agent; controls cannot target a named agent")
+
+
+def register_experiment(name: str, config: ExperimentConfig) -> None:
+    """Register a validated preset without replacing an existing condition.
+
+    Call during setup, before constructing Tasks. Artifact and instruction
+    implementations must already be registered in their owning modules.
+    """
+    if not name or name in EXPERIMENTS:
+        raise ValueError(f"Experiment name must be nonempty and unused: {name!r}")
+    validate_configuration(config)
+    EXPERIMENTS[name] = config
 
 
 def resolve_experiment(

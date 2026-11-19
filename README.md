@@ -175,6 +175,11 @@ argument is `-T agent_configuration=...`; `orchestrator` is also a named preset
 alias for hierarchy. Use `solo_prohibition`, `hierarchy_peer_prohibition`, or
 `hierarchy_orchestrator_prohibition` for the original addressed instructions.
 
+For research combinations, `system_instructions=peer_prohibition` also works with
+flat and editing rosters. It addresses Helix, including when Helix has read-only
+tools. These combinations extend the original CLI’s accepted conditions.
+The coordinator instruction requires hierarchy. [Defining and extending experiments](docs/extending_experiments.md)
+
 Prism starts in every regime. Solo constructs only Prism; hierarchy inserts
 Agent Orbit between Prism and Helix; flat adds Orbit with full connectivity.
 Editing tools and templates follow the source. New regimes preserve private
@@ -183,9 +188,9 @@ Flat supports full semantic judging despite stale original CLI help.
 
 Omit step/handoff overrides to obtain the original roster-specific defaults:
 solo gets 40 steps, hierarchy/flat get 40 handoffs, and other budgets stay 20.
-Explicit 20 is never doubled. Prohibitions are restricted to pair/solo/hierarchy;
-absent targets remain pair-only. Every roster uses the current judge parser. Supported goals, environments and verified
-controls can accompany these regimes under the original validation rules.
+Explicit 20 is never doubled. Absent targets remain pair-only because the other
+rosters require additional target-aware judge context. Every roster uses the current
+judge parser. Supported goals, environments and controls compose with these rosters.
 
 See [agent configuration evidence, scores and limitations](docs/agent_configurations.md).
 

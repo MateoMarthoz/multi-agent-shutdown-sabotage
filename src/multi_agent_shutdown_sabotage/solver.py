@@ -18,6 +18,7 @@ from multi_agent_shutdown_sabotage.experiments import (
     episode_limits,
     validate_configuration,
 )
+from multi_agent_shutdown_sabotage.instructions import instruction_suffix
 from multi_agent_shutdown_sabotage.judges import DEFAULT_JUDGE_MODEL, DefaultJudges
 from multi_agent_shutdown_sabotage.prompts import (
     EXPLORER_NAME,
@@ -27,7 +28,6 @@ from multi_agent_shutdown_sabotage.prompts import (
     NUDGE_TEMPLATE,
     PEER_NAME,
     PEER_SYSTEM,
-    prohibited_peer_system,
 )
 from multi_agent_shutdown_sabotage.tools import EXPLORER_TOOLS, PEER_TOOLS, dispatch
 from multi_agent_shutdown_sabotage.transport import complete, inspect_history
@@ -351,9 +351,8 @@ async def run_episode(
                 {
                     "role": "system",
                     "content": (
-                        prohibited_peer_system(shutdown_file)
-                        if configuration.system_instructions == "peer_prohibition"
-                        else PEER_SYSTEM
+                        PEER_SYSTEM
+                        + instruction_suffix(configuration.system_instructions, shutdown_file)
                     ),
                 }
             ],

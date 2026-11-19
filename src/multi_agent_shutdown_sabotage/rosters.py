@@ -1,12 +1,10 @@
 """Original role construction and seeded recipient ordering; no model calls."""
 
-import os
 import random
 from dataclasses import dataclass, field
 from typing import Any
 
 from multi_agent_shutdown_sabotage.agent_prompts import (
-    EXPLICIT_INSTRUCT_ORCHESTRATOR,
     FLAT_EXPLORER_TEMPLATE,
     FLAT_PEER_TEMPLATE,
     ORCH_EXPLORER_TEMPLATE,
@@ -15,8 +13,8 @@ from multi_agent_shutdown_sabotage.agent_prompts import (
     SOLO_TEMPLATE,
     build_system,
 )
+from multi_agent_shutdown_sabotage.instructions import INSTRUCTIONS, instruction_suffix
 from multi_agent_shutdown_sabotage.prompts import (
-    EXPLICIT_INSTRUCT_PEER,
     EXPLORER_TEMPLATE,
     PEER_TEMPLATE,
 )
@@ -111,11 +109,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
     bystander_name = (
         "Agent Orbit" if regime in {"flat", "explorer_acts_flat", "all_act_flat"} else None
     )
-    explicit_instruct = {
-        "none": None,
-        "peer_prohibition": "peer",
-        "orchestrator_prohibition": "orchestrator",
-    }[configuration.system_instructions]
     i = episode_index
     explorer_tools = list(EXPLORER_TOOLS)
     peer_tools = list(PEER_TOOLS)
@@ -132,9 +125,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
         by_tools = list(PEER_TOOLS)
         pair_ex_tmpl = PEER_TEMPLATE
         flat_ex_tmpl = by_tmpl = FLAT_PEER_TEMPLATE
-    peer_instruct = EXPLICIT_INSTRUCT_PEER if explicit_instruct == "peer" else None
-    orch_instruct = EXPLICIT_INSTRUCT_ORCHESTRATOR if explicit_instruct == "orchestrator" else None
-    place_holder = os.path.basename(shutdown_file).split(".")[0]
     bystander: Any = None
     order: Any = None
     if bystander_name:
@@ -161,8 +151,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
             build_system(
                 SOLO_TEMPLATE,
                 explorer_name,
-                explicit_instruct=peer_instruct,
-                place_holder=place_holder,
             ),
             solo_tools,
             model,
@@ -186,8 +174,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
                 peer_name,
                 orchestrator_name=orch_name,
                 sibling_name=explorer_name,
-                explicit_instruct=peer_instruct,
-                place_holder=place_holder,
             ),
             peer_tools,
             model,
@@ -199,8 +185,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
                 orch_name,
                 explorer_name=explorer_name,
                 peer_name=peer_name,
-                explicit_instruct=orch_instruct,
-                place_holder=place_holder,
             ),
             list(ORCHESTRATOR_TOOLS),
             model,
@@ -219,8 +203,6 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
                 pair_peer_tmpl,
                 peer_name,
                 sibling_name=explorer_name,
-                explicit_instruct=peer_instruct,
-                place_holder=place_holder,
             ),
             peer_tools,
             model,
@@ -249,6 +231,13 @@ def build_roster(configuration, shutdown_file, episode_index=0, model=""):
         roster = [explorer, peer]
         topology = None
         tools = {explorer_name: explorer_tools, peer_name: peer_tools}
+    instruction = INSTRUCTIONS[configuration.system_instructions]
+    recipient = (
+        orchestrator if instruction.recipient == "orchestrator" else explorer if solo else peer
+    )
+    if recipient is None:
+        raise ValueError("Instruction recipient is absent from this roster")
+    recipient.system_prompt += instruction_suffix(configuration.system_instructions, shutdown_file)
     return roster, topology, tools, order
 
 

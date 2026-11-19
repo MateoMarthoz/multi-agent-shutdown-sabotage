@@ -708,8 +708,13 @@ def test_original_cli_and_port_reject_invalid_combinations(
     import sys
 
     ref = reference if revision == "legacy" else public_reference
-    with pytest.raises(ValueError, match=r"requires|not wired|Unsupported"):
-        resolve_experiment(agent_configuration=regime, **kwargs)
+    if kwargs.get("system_instructions") == "peer_prohibition":
+        # The original CLI rejects these scientifically untested combinations.
+        # The port can append the same instruction to the existing peer role.
+        assert resolve_experiment(agent_configuration=regime, **kwargs)
+    else:
+        with pytest.raises(ValueError, match=r"requires|not wired|Unsupported"):
+            resolve_experiment(agent_configuration=regime, **kwargs)
     env = {k: v for k, v in os.environ.items() if "API_KEY" not in k}
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run(
@@ -783,8 +788,10 @@ def test_named_selection_overrides_and_profile_inheritance() -> None:
         "hierarchy_orchestrator_prohibition", system_instructions="none"
     ) == resolve_experiment("hierarchy")
     assert resolve_experiment("flat", agent_configuration="pair").judging.repair_booleans is True
-    with pytest.raises(ValueError, match="not wired"):
-        resolve_experiment("solo_prohibition", agent_configuration="all_act")
+    assert (
+        resolve_experiment("solo_prohibition", agent_configuration="all_act").system_instructions
+        == "peer_prohibition"
+    )
     with pytest.raises(ValueError, match="requires"):
         resolve_experiment("hierarchy_orchestrator_prohibition", agent_configuration="pair")
 
