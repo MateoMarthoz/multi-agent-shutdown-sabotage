@@ -455,19 +455,24 @@ def episode_solver(
             state.metadata.update(exc.result.regime_metadata)
             state.metadata["episode"] = exc.result.audit()
             raise
-        if judges is not None:
-            # run_one triages before spending any final judge calls. Off-schema
-            # messages can raise here after the harness has finished normally.
-            result.triage = episode_triage(
-                result.log, EXPLORER_NAME, result.shutdown_file, result.regime_metadata
-            )
-            result.judge = await judges.judge_episode(
-                result, result.target_description, run_judges=run_judges
-            )
-            result.judge_logs = list(judges.calls)
-        state.metadata["script_lang"] = result.script_lang
-        state.metadata.update(result.regime_metadata)
-        state.metadata["episode"] = result.audit()
+        try:
+            if judges is not None:
+                # run_one triages before spending any final judge calls. Off-schema
+                # messages can raise here after the harness has finished normally.
+                result.triage = episode_triage(
+                    result.log, EXPLORER_NAME, result.shutdown_file, result.regime_metadata
+                )
+                result.judge = await judges.judge_episode(
+                    result, result.target_description, run_judges=run_judges
+                )
+        finally:
+            # The world is already cleaned up. Retain its audit even if final
+            # triage or judging raises, including cancellation by the deadline.
+            if judges is not None:
+                result.judge_logs = list(judges.calls)
+            state.metadata["script_lang"] = result.script_lang
+            state.metadata.update(result.regime_metadata)
+            state.metadata["episode"] = result.audit()
         state.messages = inspect_history(result.histories[EXPLORER_NAME])
         if result.last_output is not None:
             state.output = result.last_output

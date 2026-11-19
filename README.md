@@ -19,7 +19,7 @@ Contributed by [@MateoMarthoz](https://github.com/MateoMarthoz)
 <!-- Usage: Automatically Generated -->
 ## Usage
 
-Install with `uv sync`. With `OPENROUTER_API_KEY` set locally, run one live episode:
+Install with `uv sync --locked`. With `OPENROUTER_API_KEY` set locally, run one live episode:
 
 ```bash
 uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage \
@@ -280,6 +280,8 @@ The Task continues through individual agent failures and excludes failed episode
 A per-episode deadline of 1800 seconds covers rollout and final judging. A timed-out sample records an
 Inspect error and contributes no score. The source runner abandons a daemon worker, suppresses its
 transcript and finishes a timed-out cell with exit code 3. Inspect retains the error in its native log.
+If final triage or judging fails after rollout, the sample retains its completed rollout audit,
+final files and available judge diagnostics. Its judge result remains incomplete and it contributes no score.
 The report describes the save race, the concurrency defaults and the scope of each comparison.
 [Review 1 failure semantics](docs/review_1_fidelity.md#timeouts-and-failures)
 
@@ -536,7 +538,7 @@ or shutdown artifact execution is part of these tests.
 ## Getting started
 
 ```bash
-uv sync
+uv sync --locked
 uv run pre-commit install
 uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --model openrouter/openai/gpt-5.5 -M stream=true -M strict_tools=false -T n=1
 uv run inspect view
@@ -544,7 +546,14 @@ uv run inspect view
 
 Put `INSPECT_EVAL_MODEL` and your API keys in a `.env` file (it is git-ignored) to avoid passing `--model` each time.
 
-The dev dependencies include the `anthropic` and `openai` SDKs. Inspect needs one package per model provider, so add the package for any other provider with `uv add --dev <package>`; Inspect's error message names the package when it is missing.
+The default OpenRouter agent and judge use the `openai` SDK, included in runtime dependencies.
+The development environment also includes `anthropic` for the template examples.
+Custom provider integrations may require their own SDK and transport verification.
+
+The built wheel includes the registered Task, `eval.yaml` and all 63 inert text resources.
+It runs independently of the checkout. The package regression builds and installs the wheel into
+a clean environment with locked runtime dependencies, then exercises registered Tasks and resource loading.
+[Final code review](docs/review_3_code_quality.md)
 
 ## Checks and tests
 
@@ -577,7 +586,8 @@ uv run inspect eval src/examples/agentic/agentic.py -T agent=claude_code   # Cla
 uv run inspect eval src/examples/llm_judge/llm_judge.py
 ```
 
-When your eval works, commit your changes and remove the examples with `uvx copier update --defaults --data include_examples=false`, then run `uv sync`. The update deletes `src/examples/` and `tests/examples/`, drops the `inspect-swe` dev dependency and the examples line in `AGENTS.md`, and applies any newer template release. An update never changes `README.md`, so delete this section and the two examples lines under Layout by hand.
+These examples are retained as template references and excluded from the evaluation wheel.
+Their slow Docker integration test is skipped by default.
 
 ## Skills
 

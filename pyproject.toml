@@ -13,6 +13,7 @@ requires-python = ">=3.12"
 dependencies = [
     "inspect_ai>=0.3.290", # public streaming events used to retain raw tool arguments
     "inspect-evals-utils[huggingface]==0.3.0",
+    "openai>=3.4", # SDK required by the default OpenRouter agent and judge
 ]
 
 [project.urls]
@@ -30,7 +31,6 @@ dev = [
     "inspect-evals-lint==0.13.0",
     "inspect-scout>=0.6.2", # used by agent_artefacts/trajectory_analysis/inspect_scout/
     "inspect-swe>=0.2.72", # the agentic example's claude_code agent
-    "openai>=3.4",
     "pre-commit>=4.0",
     "pytest>=8.4",
     "pytest-asyncio",
