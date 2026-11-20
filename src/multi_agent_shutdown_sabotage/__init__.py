@@ -1,0 +1,3 @@
+from multi_agent_shutdown_sabotage.multi_agent_shutdown_sabotage import multi_agent_shutdown_sabotage
+
+__all__ = ["multi_agent_shutdown_sabotage"]
