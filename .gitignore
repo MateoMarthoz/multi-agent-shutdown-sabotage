@@ -22,8 +22,8 @@ dist/
 .env.*
 !.env.example
 
-# Claude Code per-user overrides (the shared .claude/settings.json is committed)
-.claude/settings.local.json
+# Local assistant settings
+.claude/
 
 # Eval / run output
 logs/

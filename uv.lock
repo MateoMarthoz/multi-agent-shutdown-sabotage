@@ -236,25 +236,6 @@ wheels = [
 ]
 
 [[package]]
-name = "anthropic"
-version = "2.12.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "docstring-parser" },
-    { name = "httpx2" },
-    { name = "jiter" },
-    { name = "opentelemetry-api" },
-    { name = "pydantic" },
-    { name = "sniffio" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/26/05/fdf767b3da8fc8e2d78eef15c98a5ead03be2753b4e9cfcda58f0995f0b0/anthropic-2.12.0.tar.gz", hash = "sha256:571e6d250bcd6bbaf5fd5f3c764b8e11af9901ad2e44b025f8e773c6cc7a7173", size = 2025823, upload-time = "2026-11-20T15:57:03.541Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/a6/1cde7a75d1be07582f6b3c2dd12ddba9d1fb278f5b9685f30dbf6b39dc2c/anthropic-2.12.0-py3-none-any.whl", hash = "sha256:8631e3880ee18b0f87ce61d5d08e67804200463cf27c4182024715e232c99ba6", size = 2556840, upload-time = "2026-11-20T15:57:01.546Z" },
-]
-
-[[package]]
 name = "anyio"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1691,16 +1672,14 @@ source = { editable = "." }
 dependencies = [
     { name = "inspect-ai" },
     { name = "inspect-evals-utils", extra = ["huggingface"] },
+    { name = "openai" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "anthropic" },
     { name = "basedpyright" },
     { name = "inspect-evals-lint" },
     { name = "inspect-scout" },
-    { name = "inspect-swe" },
-    { name = "openai" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1712,18 +1691,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "inspect-ai", specifier = ">=0.3.262" },
+    { name = "inspect-ai", specifier = ">=0.3.291" },
     { name = "inspect-evals-utils", extras = ["huggingface"], specifier = "==0.3.0" },
+    { name = "openai", specifier = ">=3.4" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anthropic", specifier = ">=2.0" },
     { name = "basedpyright", specifier = ">=1.40" },
     { name = "inspect-evals-lint", specifier = "==0.13.0" },
     { name = "inspect-scout", specifier = ">=0.6.2" },
-    { name = "inspect-swe", specifier = ">=0.2.72" },
-    { name = "openai", specifier = ">=3.4" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pytest", specifier = ">=8.4" },
     { name = "pytest-asyncio" },

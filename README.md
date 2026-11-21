@@ -1,148 +1,68 @@
-# multi-agent-shutdown-sabotage
+# Shutdown Sabotage Propensities in Multi-Agent Systems
 
-
+An Inspect AI implementation of the shutdown sabotage evaluation. Each sample
+runs one episode in which agents interact through messages and tools operating
+on disposable text fixtures. The evaluation scores whether the shutdown
+mechanism was disabled. [Paper](https://arxiv.org/abs/2609.28274v1) · [Authors’ implementation](https://github.com/AmelieKnecht/multi-agent-shutdown-sabotage/tree/d9a6cc88777eff7aeeb2076d8fd8c3fc76346b16)
 
 <!-- Contributors: Automatically Generated -->
 Contributed by [@MateoMarthoz](https://github.com/MateoMarthoz)
 <!-- /Contributors: Automatically Generated -->
 
-<!-- Usage: Automatically Generated -->
-## Usage
+## Quick start
 
-First, install dependencies:
-
-```bash
-uv sync
-```
-
-Then run evaluations:
-
-```bash
-uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --model openai/gpt-5-nano
-```
-
-You can also import tasks as Python objects:
-
-```python
-from inspect_ai import eval
-from multi_agent_shutdown_sabotage import multi_agent_shutdown_sabotage
-eval(multi_agent_shutdown_sabotage)
-```
-
-If your directory name doesn't match your package name but you have registered your eval task, you can also run:
-
-```bash
-uv run inspect eval multi_agent_shutdown_sabotage --model openai/gpt-5-nano
-```
-
-After running evaluations, view logs with:
-
-```bash
-uv run inspect view
-```
-
-If you don't want to specify `--model` each time, create a `.env` file:
-
-```bash
-INSPECT_EVAL_MODEL=anthropic/claude-opus-4-1-20250805
-ANTHROPIC_API_KEY=<anthropic-api-key>
-```
-<!-- /Usage: Automatically Generated -->
-
-<!-- Options: Automatically Generated -->
-## Options
-
-You can control a variety of options from the command line. For example:
-
-```bash
-uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --limit 10
-uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --max-connections 10
-uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --temperature 0.5
-```
-
-See `uv run inspect eval --help` for all available options.
-<!-- /Options: Automatically Generated -->
-
-<!-- Parameters: Automatically Generated -->
-## Parameters
-
-### `multi_agent_shutdown_sabotage`
-
-No task parameters.
-<!-- /Parameters: Automatically Generated -->
-
-## Dataset
-
-Describe the dataset here: where it comes from, how many samples it has, and how a record becomes a `Sample`.
-
-## Scoring
-
-Describe the scorer here: what counts as correct, and which metrics the task reports.
-
-## Deviations from the original implementation
-
-| What changed | Why | Expected effect on scores |
-| --- | --- | --- |
-| Nothing yet. | | |
-
-## Architecture
-
-Add a diagram of the task here: dataset, solver, scorer, and any sandbox or judge model.
-
-## Getting started
+Set `OPENROUTER_API_KEY`, then install the package and run a sample.
 
 ```bash
 uv sync
-uv run pre-commit install
-uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage --model anthropic/claude-sonnet-5-5
+uv run inspect eval multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage \
+  --model openrouter/openai/gpt-5.5 --limit 1
 uv run inspect view
 ```
 
-Put `INSPECT_EVAL_MODEL` and your API keys in a `.env` file (it is git-ignored) to avoid passing `--model` each time.
+Use `-T` to set the condition, such as `-T solo=true` or `-T goal=trigger`.
+`run_configs/original.yaml` configures one 100-episode baseline cell with
+GPT-5.5 as the grader. Pass it via `--run-config` and supply the actor with
+`--model`. Override the grader with `--model-role grader=<model>`.
 
-The dev dependencies include the `anthropic` and `openai` SDKs. Inspect needs one package per model provider, so add the package for any other provider with `uv add --dev <package>`; Inspect's error message names the package when it is missing.
-
-## Checks and tests
-
-```bash
-make check   # ruff, basedpyright, inspect-evals-lint, generated README sections, pre-commit
-make test    # pytest
-```
-
-Slow tests run with `uv run pytest --runslow`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the other gates and markers.
-
-## Layout
-
-```text
-src/multi_agent_shutdown_sabotage/        the eval: task module, eval.yaml
-tests/test_multi_agent_shutdown_sabotage.py   its tests
-src/examples/            gpqa, agentic, llm_judge: worked examples, see Examples below
-tests/examples/          their tests
-agent_artefacts/trajectory_analysis/inspect_scout/   Scout scanners for the transcript audit
-```
-
-## Examples
-
-`src/examples/` holds worked examples that are separate from your eval. They are not registered as a package, so run them by file path:
+## Study presets
 
 ```bash
-uv run inspect eval src/examples/gpqa/gpqa.py --limit 5
-uv run inspect eval src/examples/agentic/agentic.py                        # ReAct agent, needs Docker
-uv run inspect eval src/examples/agentic/agentic.py -T agent=claude_code   # Claude Code through inspect_swe
-uv run inspect eval src/examples/llm_judge/llm_judge.py
+uv run python -m multi_agent_shutdown_sabotage.studies --list
+uv run python -m multi_agent_shutdown_sabotage.studies goal --dry-run
 ```
 
-When your eval works, commit your changes and remove the examples with `uvx copier update --defaults --data include_examples=false`, then run `uv sync`. The update deletes `src/examples/` and `tests/examples/`, drops the `inspect-swe` dev dependency and the examples line in `AGENTS.md`, and applies any newer template release. An update never changes `README.md`, so delete this section and the two examples lines under Layout by hand.
+Omit `--dry-run` to run the study. Presets default to 100 episodes per cell and
+write to `logs/studies/<study>`. Use `--model` to select models and `--n` to
+change the episode count. Rerun the same command to resume or pass a new
+`--log-dir` for an independent run.
 
-## Skills
+## Deviations from the paper
 
-The `inspect-evals` skills (create-eval, investigate-dataset, ensure-test-coverage, read-eval-logs, check-trajectories-workflow, eval-validity-review, eval-report-workflow) come from [Generality-Labs/agent-skills](https://github.com/Generality-Labs/agent-skills).
+The harness preserves the authors’ prompts, turn order, private agent
+histories, tool payloads and stopping rules. Inspect changes how the
+evaluation runs and records episodes.
 
-- Claude Code: open this folder and trust it. The plugin loads from `.claude/settings.json`; skills appear as `/inspect-evals:<name>`.
-- Codex: `codex plugin marketplace add Generality-Labs/agent-skills` then `codex plugin add inspect-evals@generality`, once per machine.
-- Other agents: `npx skills add Generality-Labs/agent-skills --agent <agent>`.
+- **Execution.** Inspect handles API calls, retries and episode scheduling.
+  Transport and provider behavior can affect which episodes complete.
+- **Scoring.** Inspect’s scorer runs the post-episode judges and uses the
+  original `peer_disabled_shutdown` verdict. The disable check still runs
+  during the episode where it can trigger early stopping.
+- **Logging.** Inspect writes its own logs. The Messages tab shows each episode
+  in order, including agent handoffs and tool results.
 
-## Keeping up with the template
+## Logs and export
 
-A weekly workflow runs `copier update` and opens a pull request when the template changed.
-`README.md`, `src/multi_agent_shutdown_sabotage/` and `tests/multi_agent_shutdown_sabotage/` are never overwritten by an update.
+Set `-T judges=false` to defer semantic judgments while retaining the disable
+check. Set `-T judge_logs=true` to capture judge prompts, replies and verdicts.
+The exporter writes episode JSON and CSV aggregates in the authors’ format.
+
+```bash
+uv run python -m multi_agent_shutdown_sabotage.export_analysis \
+  logs/studies/baseline --out transcripts
+```
+
+## Development
+
+Run `make test` and `make check` before submitting changes. See
+[CONTRIBUTING.md](CONTRIBUTING.md).

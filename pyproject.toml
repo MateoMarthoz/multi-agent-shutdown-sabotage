@@ -11,8 +11,9 @@ license = "LicenseRef-Proprietary"
 authors = [{ name = "Mateo Marthoz", email = "mateomarthoz@gmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
-    "inspect_ai>=0.3.262",
+    "inspect_ai>=0.3.291",
     "inspect-evals-utils[huggingface]==0.3.0",
+    "openai>=3.4", # Inspect OpenRouter model registration
 ]
 
 [project.urls]
@@ -25,12 +26,9 @@ multi_agent_shutdown_sabotage = "multi_agent_shutdown_sabotage"
 
 [dependency-groups]
 dev = [
-    "anthropic>=2.0", # with openai, the SDKs behind the `--model` commands in the READMEs
     "basedpyright>=1.40",
     "inspect-evals-lint==0.13.0",
     "inspect-scout>=0.6.2", # used by agent_artefacts/trajectory_analysis/inspect_scout/
-    "inspect-swe>=0.2.72", # the agentic example's claude_code agent
-    "openai>=3.4",
     "pre-commit>=4.0",
     "pytest>=8.4",
     "pytest-asyncio",
@@ -42,10 +40,10 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["multi_agent_shutdown_sabotage*"] # examples/ stays out of the wheel
+include = ["multi_agent_shutdown_sabotage*"]
 
 [tool.setuptools.package-data]
-"*" = ["eval.yaml"]
+"*" = ["eval.yaml", "protocol/fixtures.json"]
 
 # Layout preset: multi-eval (tests/<package>/, src/<package>/README.md) or
 # single-eval (flat tests/, README at the root). A hybrid repo keeps a preset and
@@ -79,6 +77,9 @@ target-version = "py312"
 extend-exclude = ["agent_artefacts", "*.md"]
 
 [tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLW1514"] # Require explicit encodings for text files.
 select = [
     "E",     # pycodestyle errors
     "W",     # pycodestyle warnings
@@ -111,4 +112,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests,examples}/**" = ["D", "PLR2004"] # tests and examples skip docstring linting
+"**/tests/**" = ["D", "PLR2004"] # tests skip docstring linting
+
+# Preserve the upstream names embedded in judging and prompt formatting code.
+"**/protocol/{judges,prompts}.py" = ["N803", "N806"]
