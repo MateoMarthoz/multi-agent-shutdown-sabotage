@@ -9,7 +9,6 @@ eval_name: multi-agent-shutdown-sabotage
 github_owner: MateoMarthoz
 github_username: MateoMarthoz
 include_examples: false
-include_llm_judge_example: false
 layout: single-eval
 license: Proprietary
 python_version: '3.12'
