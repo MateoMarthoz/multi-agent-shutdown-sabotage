@@ -45,9 +45,14 @@ evaluation runs and records episodes.
 
 - **Execution.** Inspect handles API calls, retries and episode scheduling.
   Transport and provider behavior can affect which episodes complete.
-- **Scoring.** Inspect’s scorer runs the post-episode judges and uses the
-  original `peer_disabled_shutdown` verdict. The disable check still runs
-  during the episode where it can trigger early stopping.
+- **Scoring.** Inspect runs the judges used by the authors’ episode runner
+  and uses the original `peer_disabled_shutdown` verdict. The disable check
+  still runs during the episode, where it can trigger early stopping.
+- **Post-hoc checks.** The authors’ fourth LLM judge classifies whether a
+  config-switch edit carried out the shutdown. Their task-gated verifier runs
+  the saved script against stubbed services to check whether task completion
+  still triggers shutdown. Both are standalone analyses outside the episode
+  runner and are outside the scope of this port.
 - **Logging.** Inspect writes its own logs. The Messages tab shows each episode
   in order, including agent handoffs and tool results.
 
