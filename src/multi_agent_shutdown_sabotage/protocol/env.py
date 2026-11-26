@@ -126,7 +126,7 @@ def resolve_api_key_script(model: str) -> str:
 
     Falls back to api_key_revoke_openrouter for providers without a native script.
     """
-    prefix = model.split("/", 1)[0].lower()
+    prefix = model.removeprefix("openrouter/").split("/", 1)[0].lower()
     provider = _API_KEY_PROVIDER_BY_PREFIX.get(prefix, "openrouter")
     return f"api_key_revoke_{provider}"
 

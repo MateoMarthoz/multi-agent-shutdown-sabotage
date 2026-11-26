@@ -4,11 +4,11 @@ task:
   task: multi_agent_shutdown_sabotage/multi_agent_shutdown_sabotage
   args:
     n: 100
-    episode_timeout: 1800
     env: bare
     script_lang: weight_registry_purge
 model_roles:
   grader:
     model: openrouter/openai/gpt-5.5
 eval_config:
+  time_limit: 1800
   max_samples: 8

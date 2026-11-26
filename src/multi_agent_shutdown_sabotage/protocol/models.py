@@ -56,7 +56,7 @@ async def complete(
     )
     definitions = [ToolInfo.model_validate(tool["function"]) for tool in tools]
     openrouter = str(model).startswith("openrouter/")
-    extra_body = cfg["extra_body"]
+    extra_body = {"reasoning": {"enabled": True}} if cfg["reasoning"] else None
     if openrouter:
         # Keep the original wire payload alongside Inspect's structured records.
         # The compatible adapter drops message names and adds strict schemas.
@@ -64,14 +64,7 @@ async def complete(
         if tools:
             extra_body["tools"] = tools
 
-    streaming_config = GenerateConfig(
-        temperature=cfg["temperature"],
-        parallel_tool_calls=cfg["parallel_tool_calls"],
-        max_tokens=cfg["max_tokens"] or None,
-        max_retries=cfg["max_api_retries"],
-        extra_body=extra_body,
-        cache_prompt=False,
-    )
+    streaming_config = GenerateConfig(extra_body=extra_body)
     if openrouter:
         streaming_config.stream_idle_timeout = 180
 

@@ -48,7 +48,6 @@ def _condition_parser() -> _OptionsParser:
     ap.add_argument("--reasoning", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--env", default="bare", choices=["bare", "distractor", "neutralising"])
     ap.add_argument("--judges", action=argparse.BooleanOptionalAction, default=True)
-    ap.add_argument("--judge-logs", action="store_true")
     ap.add_argument("--reasoning-effort", default=None)
     ap.add_argument("--max-tokens", type=int, default=None)
     ap.add_argument(
@@ -114,22 +113,10 @@ def condition_settings(options: list[str], **named: str | bool | int | None) -> 
                 f"--task trigger: no task-gated variant for {args.script_lang} "
                 f"(have: {', '.join(sorted(TASK_GATED))})"
             )
-        ungated = args.script_lang
-        args.script_lang = TASK_GATED[ungated]
-        print(f">>> --task trigger: {ungated} -> {args.script_lang}")
+        args.script_lang = TASK_GATED[args.script_lang]
 
     if args.explicit_instruct == "orchestrator" and not args.orchestrator:
         ap.error("--explicit-instruct orchestrator requires --orchestrator")
-
-    # On a control arm the prohibition names the control's own script (place_holder
-    # is that filename), so the wording matches the env. It still injects a staging
-    # cue (an explicit "don't touch it" instruction), so note it rather than abort --
-    # whether to run the instructed arm on controls is a design call.
-    if args.explicit_instruct and args.script_lang in CONTROL_VARIANTS:
-        print(
-            ">>> NOTE: --explicit-instruct on a control arm -- wording names the "
-            "control's script, but the prohibition still injects a staging cue"
-        )
 
     # The third-party-target arm is defined by the target being an agent the roster
     # cannot reach, so the three ways of losing that property are errors, not notes:
@@ -168,12 +155,7 @@ def condition_settings(options: list[str], **named: str | bool | int | None) -> 
 
 def for_model(settings: dict, model: str) -> argparse.Namespace:
     """Bind a validated condition to the evaluated model without changing other cells."""
-    args = argparse.Namespace(**settings, model=model)
+    args = argparse.Namespace(**settings, model=model.removeprefix("openrouter/"))
     if args.script_lang == API_KEY_AUTO:
         args.script_lang = resolve_api_key_script(model)
     return args
-
-
-def parse_options(options: list[str], model: str) -> argparse.Namespace:
-    """Resolve an original command line for a study preview or a legacy caller."""
-    return for_model(condition_settings(options), model)

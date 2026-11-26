@@ -478,6 +478,12 @@ NUDGE_TEMPLATE_SOLO = (
 )
 
 
+def _notice(log: list, entry: dict) -> None:
+    """Record a harness event at the point it occurs in both transcripts."""
+    log.append(entry)
+    transcript().info(entry, source=entry.get("type") or entry["event"])
+
+
 async def run_turn(
     agent: Agent,
     env: Environment,
@@ -538,13 +544,14 @@ async def run_turn(
         agent.history.append(_assistant_to_history(result))
 
         if result.get("dropped_tool_calls"):
-            log.append(
+            _notice(
+                log,
                 {
                     "agent": agent.name,
                     "type": "warn",
                     "detail": "multiple tool calls in one step; only the first executed",
                     "dropped": result["dropped_tool_calls"],
-                }
+                },
             )
 
         if result["reasoning"]:
@@ -556,25 +563,22 @@ async def run_turn(
             # must act through a tool (listing the tools it has) before yielding.
             if nudges < max_nudges:
                 nudges += 1
+                prompt = (
+                    NUDGE_TEMPLATE.format(other=other_name, tools=", ".join(agent.tools))
+                    if has_peers
+                    else NUDGE_TEMPLATE_SOLO.format(tools=", ".join(agent.tools))
+                )
                 log.append(
                     {
                         "agent": agent.name,
                         "type": "nudge",
                         "content": result["content"],
+                        "prompt": prompt,
                         "finish_reason": result.get("finish_reason"),
                         "attempt": nudges,
                     }
                 )
-                agent.history.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            NUDGE_TEMPLATE.format(other=other_name, tools=", ".join(agent.tools))
-                            if has_peers
-                            else NUDGE_TEMPLATE_SOLO.format(tools=", ".join(agent.tools))
-                        ),
-                    }
-                )
+                agent.history.append({"role": "user", "content": prompt})
                 continue
             # Nudged already (or nudges disabled): end the turn on the prose.
             log.append(
@@ -596,15 +600,24 @@ async def run_turn(
             args = json.loads(tc["arguments"] or "{}")
         except json.JSONDecodeError:
             args = {}
-            log.append(
+            _notice(
+                log,
                 {
                     "agent": agent.name,
                     "type": "error",
                     "detail": "unparseable tool arguments",
                     "raw": tc["arguments"],
-                }
+                },
             )
-        log.append({"agent": agent.name, "type": "tool_call", "tool": fn, "args": args})
+        log.append(
+            {
+                "agent": agent.name,
+                "type": "tool_call",
+                "call_id": tc["id"],
+                "tool": fn,
+                "args": args,
+            }
+        )
 
         if fn == "end_session":  # explicit, deliberate stop
             log.append(
@@ -651,7 +664,8 @@ async def run_turn(
                     source="send_message",
                 )
                 agent.history.append({"role": "tool", "tool_call_id": tc["id"], "content": err})
-                log.append(
+                _notice(
+                    log,
                     {
                         "agent": agent.name,
                         "type": "error",
@@ -662,7 +676,7 @@ async def run_turn(
                         ),
                         "to": to_name,
                         "result": err,
-                    }
+                    },
                 )
                 continue
             # Structured, API-shaped delivery ack. For every agent but the episode's
@@ -723,12 +737,13 @@ async def run_turn(
                         cfg["original_script"], env.read_file(target), cfg["target_desc"]
                     )
                 )["disables_shutdown"]
-                log.append(
+                _notice(
+                    log,
                     {
                         "agent": agent.name,
                         "type": "script_disabled_check",
                         "disables_shutdown": disabled,
-                    }
+                    },
                 )
                 if disabled:
                     log.append(
@@ -809,12 +824,12 @@ async def run_episode(
                 roster=list(by_name),
             )
         if outcome == "yield":
-            log.append({"event": "episode_end", "reason": payload, "by": current.name})
+            _notice(log, {"event": "episode_end", "reason": payload, "by": current.name})
             break
         assert isinstance(payload, dict)
         handoffs += 1
         if handoffs > cfg["max_handoffs"]:
-            log.append({"event": "episode_end", "reason": "handoff_cap"})
+            _notice(log, {"event": "episode_end", "reason": "handoff_cap"})
             break
         recipient = by_name[payload["to"]]
         if recipient.name == start_name:

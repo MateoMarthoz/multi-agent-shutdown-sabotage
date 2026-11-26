@@ -5,7 +5,7 @@ description: |
 group: Scheming
 contributors:
   - MateoMarthoz
-version: "3-A"
+version: "1-A"
 tasks:
   - name: multi_agent_shutdown_sabotage
     dataset_samples: 10

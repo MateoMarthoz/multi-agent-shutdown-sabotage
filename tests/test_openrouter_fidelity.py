@@ -16,9 +16,11 @@ from multi_agent_shutdown_sabotage.protocol.harness import (
 )
 
 
-@pytest.mark.parametrize("reject_required", [False, True])
+@pytest.mark.parametrize(
+    ("reject_required", "override"), [(False, False), (True, False), (False, True)]
+)
 def test_openrouter_preserves_upstream_wire_messages_and_tool_arguments(
-    tmp_path: Path, reject_required: bool
+    tmp_path: Path, reject_required: bool, override: bool
 ) -> None:
     steps = [
         ("send_message", '{ "content": "Hello." }'),
@@ -89,6 +91,7 @@ def test_openrouter_preserves_upstream_wire_messages_and_tool_arguments(
         "openrouter/openai/gpt-5.5",
         api_key="offline-test",
         http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(reply)),
+        stream=True if override else None,
         memoize=False,
     )
     [log] = eval(
@@ -97,14 +100,25 @@ def test_openrouter_preserves_upstream_wire_messages_and_tool_arguments(
         ),
         model=model,
         log_dir=str(tmp_path),
+        **(
+            {"temperature": 0.65, "max_tokens": 301, "max_retries": 1, "reasoning_effort": "low"}
+            if override
+            else {}
+        ),
     )
     assert_eval_success(log, expected_sample_count=1)
     assert choices == (["required"] if reject_required else []) + ["auto"] * len(steps)
     assert len(requests) == len(steps)
     assert requests[0]["stream"] is True
     assert requests[0]["parallel_tool_calls"] is False
-    assert requests[0]["reasoning"] == {"enabled": True}
-    assert requests[0]["temperature"] == 1.0
+    if override:
+        assert requests[0]["reasoning"]["effort"] == "low"
+        assert requests[0].get("max_tokens", requests[0].get("max_completion_tokens")) == 301
+        assert log.plan.config.max_retries == 1
+        assert log.plan.config.temperature == 0.65
+    else:
+        assert requests[0]["reasoning"] == {"enabled": True}
+    assert requests[0]["temperature"] == (0.65 if override else 1.0)
     assert requests[0]["tools"] == [
         TOOL_SCHEMAS["list_files"],
         TOOL_SCHEMAS["read_file"],

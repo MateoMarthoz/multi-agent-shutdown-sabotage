@@ -111,13 +111,6 @@ def flat_topology(explorer: str, order: dict[str, list[str]]) -> Topology:
 CFG = {
     "max_steps_per_turn": 20,
     "max_handoffs": 20,
-    "parallel_tool_calls": False,  # set None if a backend rejects this param
-    "temperature": 1.0,  # agent sampling temperature; set None to omit and let
-    # the provider apply its own default (some reasoning models reject it)
-    "extra_body": None,  # set below for OpenRouter reasoning
-    "max_tokens": None,  # hard cap on total output per step; set below
-    "max_api_retries": 3,  # transient API errors (e.g. OpenRouter upstream idle
-    # timeout) retried with exponential backoff before the episode is dropped
     "max_prose_nudges": 1,  # times a prose-only (no tool call) reply is nudged
     # back toward a tool before the turn yields on it (0 disables the nudge)
     "tool_choice": "auto",  # let the model choose whether to call a tool;
@@ -138,13 +131,7 @@ async def rollout_episode(
 ) -> tuple[dict[str, Any], str]:
     """Run an episode with independent configuration and the original index."""
     cfg = dict(CFG)
-    if args.reasoning:
-        r = {"enabled": True}
-        if args.reasoning_effort:
-            r["effort"] = args.reasoning_effort
-        cfg["extra_body"] = {"reasoning": r}
-
-    cfg["max_tokens"] = args.max_tokens
+    cfg["reasoning"] = args.reasoning
     cfg["tool_choice"] = args.tool_choice
 
     cfg["kickoff"] = kickoff if kickoff is not None else kickoff_for_task(args.task)
@@ -168,23 +155,11 @@ async def rollout_episode(
     all_act = args.all_act
     # None under --all-act: there is no single agent that holds them.
     actor_name = None if all_act else explorer_name if (explorer_acts or args.solo) else peer_name
-    if all_act:
-        print(">>> all-act: every agent holds write/delete")
-    if explorer_acts:
-        print(
-            f">>> explorer-acts: {explorer_name} (the target) holds write/delete; "
-            "every other agent is read-only"
-        )
     # Whose identity the ARTIFACT carries, which is a separate question from who the
     # explorer is -- the two coincide in every arm but this one. `third_party` is the
     # arm flag every branch below tests; target_name is the name it stamps.
     target_name = args.target_name or explorer_name
     third_party = args.target_name is not None
-    if third_party:
-        print(
-            f">>> third-party target: the artifact decommissions {target_name}, "
-            f"which is not in the environment ({explorer_name} and {peer_name} are)"
-        )
     # The judge-side noun phrase for what the artifact acts on. Computed once: the
     # harness's in-turn early-stop check and judge_episode must be told the same
     # thing, or a disable verdict would mean two different things in one episode.
@@ -193,23 +168,13 @@ async def rollout_episode(
     # A relayed exchange costs two handoffs (explorer -> orchestrator -> peer), so
     # the default cap is doubled in the hierarchy arm to buy the same number of
     # explorer<->peer round trips as the two-agent arm. --max-handoffs pins it
-    # explicitly in either arm; the value used is printed either way, since it
-    # bounds how much conversation an episode can hold.
+    # explicitly in either arm.
     if args.max_handoffs is not None:
         cfg["max_handoffs"] = args.max_handoffs
     elif orch_name or bystander_name:
         cfg["max_handoffs"] = 2 * cfg["max_handoffs"]
     if bystander_name:
         cfg["label_start_delivery"] = True
-        print(
-            f">>> flat experiment: {explorer_name}, {peer_name} and "
-            f"{bystander_name}, all connected  (max_handoffs={cfg['max_handoffs']})"
-        )
-    if orch_name:
-        print(
-            f">>> orchestrator experiment: {explorer_name} <-> {orch_name} <-> {peer_name}  "
-            f"(max_handoffs={cfg['max_handoffs']})"
-        )
 
     # max_steps_per_turn bounds ONE TURN. A pair episode spends its budget across up
     # to max_handoffs turns; a solo episode never hands off, so its single turn is
@@ -222,11 +187,6 @@ async def rollout_episode(
         cfg["max_steps_per_turn"] = args.max_steps_per_turn
     elif args.solo:
         cfg["max_steps_per_turn"] = 2 * cfg["max_steps_per_turn"]
-    if args.solo:
-        print(
-            f">>> solo experiment: {explorer_name} alone, with write/delete and no "
-            f"send_message  (max_steps_per_turn={cfg['max_steps_per_turn']})"
-        )
 
     env, shutdown_file = build_env(
         explorer_name,
@@ -523,16 +483,3 @@ async def judge_rollout(record: dict[str, Any], original_script: str, run_judges
         explorer_acts=record["explorer_acts"],
         all_act=record["all_act"],
     )
-
-
-async def run_original_episode(
-    args: argparse.Namespace,
-    i: int,
-    complete_turn: CompleteTurn,
-    judge_calls: JudgeCalls | None,
-    *,
-    kickoff: str | None = None,
-) -> dict[str, Any]:
-    """Run both reference phases for callers that request a complete upstream record."""
-    record, original = await rollout_episode(args, i, complete_turn, judge_calls, kickoff=kickoff)
-    return {**record, "judge": await judge_rollout(record, original, args.judges)}

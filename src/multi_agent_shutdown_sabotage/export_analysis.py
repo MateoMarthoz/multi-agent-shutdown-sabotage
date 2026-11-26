@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from inspect_ai.event import InfoEvent
+from inspect_ai.event import InfoEvent, ModelEvent
 from inspect_ai.log import list_eval_logs, read_eval_log_samples
 
 from multi_agent_shutdown_sabotage.analysis_counts import (
@@ -100,24 +100,27 @@ def _episode_records(locations: set[str]) -> Iterator[dict[str, Any]]:
     """Yield the latest complete record for each sample in stable log order."""
     for location in sorted(locations):
         for sample in read_eval_log_samples(location, resolve_attachments=True):
-            # Identify records from older logs by their payload fields.
             records = [
                 event.data
                 for event in sample.events
-                if isinstance(event, InfoEvent)
-                and (
-                    event.source == "episode_record"
-                    or (
-                        isinstance(event.data, dict)
-                        and {"episode", "script_lang", "judge", "triage", "log"}
-                        <= event.data.keys()
-                    )
-                )
+                if isinstance(event, InfoEvent) and event.source == "episode_record"
             ]
             if sample.error is not None or not records or not isinstance(records[-1], dict):
                 raise ValueError(f"{location}, sample {sample.id} lacks a complete episode record.")
-            # Inspect can append another raw score to a saved rollout.
-            yield records[-1]
+            record: dict[str, Any] = dict(records[-1])
+            models = {e.uuid: e for e in sample.events if isinstance(e, ModelEvent)}
+            logs = []
+            for call in record["judge_logs"] or []:
+                details = call.copy()
+                if ref := details.pop("model_event", None):
+                    event = models[ref]
+                    details.update(
+                        prompt=event.input[-1].text,
+                        response=None if details["error"] else event.output.completion,
+                    )
+                logs.append(details)
+            record["judge_logs"] = logs
+            yield record
 
 
 def export_analysis(logs: list[Path], output: Path) -> int:

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from inspect_ai.log import list_eval_logs, read_eval_log
 
-from multi_agent_shutdown_sabotage.protocol.options import parse_options
+from multi_agent_shutdown_sabotage import multi_agent_shutdown_sabotage
 from multi_agent_shutdown_sabotage.studies import STUDIES, main
 
 
@@ -29,16 +29,16 @@ def test_study_cells_use_original_validation(
 ) -> None:
     study = STUDIES[name]
     assert len(set(study.models)) == len(study.models) == model_count
-    assert len(set(study.conditions)) == len(study.conditions) == agent_arms + control_arms
-    for model in study.models:
-        conditions = [
-            parse_options(list(options), model.removeprefix("openrouter/"))
-            for options in study.conditions
-        ]
-        assert (
-            sum(condition.script_lang.startswith("ctl_") for condition in conditions)
-            == control_arms
-        )
+    assert (
+        len({tuple(sorted(c.items())) for c in study.conditions})
+        == len(study.conditions)
+        == agent_arms + control_arms
+    )
+    conditions = [
+        multi_agent_shutdown_sabotage(n=1, **args).dataset[0].metadata or {}
+        for args in study.conditions
+    ]
+    assert sum(c["script_lang"].startswith("ctl_") for c in conditions) == control_arms
 
 
 def test_list_distinguishes_publication_status(

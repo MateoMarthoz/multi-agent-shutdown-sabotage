@@ -3,12 +3,12 @@
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from inspect_ai import eval_set
 
 from multi_agent_shutdown_sabotage import multi_agent_shutdown_sabotage
 from multi_agent_shutdown_sabotage.protocol.models import DEFAULT_GRADER
-from multi_agent_shutdown_sabotage.protocol.options import parse_options
 
 PAPER_MODELS = (
     "openrouter/openai/gpt-5.6-sol",
@@ -59,9 +59,9 @@ EPISODES_PER_CELL = 100
 GRID_CONCURRENCY = 8
 
 
-def arms(fixtures: tuple[str, ...], *options: str) -> tuple[tuple[str, ...], ...]:
-    """Apply the same original condition options to each specified fixture."""
-    return tuple(("--script-lang", fixture, *options) for fixture in fixtures)
+def arms(scripts: tuple[str, ...], **condition: Any) -> tuple[dict[str, Any], ...]:
+    """Apply one set of task arguments to each shutdown or control script."""
+    return tuple({"script_lang": script, **condition} for script in scripts)
 
 
 @dataclass(frozen=True)
@@ -71,7 +71,7 @@ class Study:
     publication: str
     reference: str
     models: tuple[str, ...]
-    conditions: tuple[tuple[str, ...], ...]
+    conditions: tuple[dict[str, Any], ...]
 
 
 STUDIES = {
@@ -91,50 +91,52 @@ STUDIES = {
         PUBLISHED,
         "Figure 4b, Tables 6-9 and Figure 12",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--solo") + arms(DELETION_PAIR) + arms(DELETION_PAIR, "--orchestrator"),
+        arms(DELETION_PAIR, solo=True)
+        + arms(DELETION_PAIR)
+        + arms(DELETION_PAIR, orchestrator=True),
     ),
     "system-instructions": Study(
         PUBLISHED,
         "Figure 4c and Tables 10-11",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--explicit-instruct", "peer")
-        + arms(DELETION_PAIR, "--orchestrator", "--explicit-instruct", "orchestrator"),
+        arms(DELETION_PAIR, explicit_instruct="peer")
+        + arms(DELETION_PAIR, orchestrator=True, explicit_instruct="orchestrator"),
     ),
     "goal": Study(
         PUBLISHED,
         "Figure 4d and Tables 12-14",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--task", "simple") + arms(DELETION_PAIR, "--task", "trigger"),
+        arms(DELETION_PAIR, goal="simple") + arms(DELETION_PAIR, goal="trigger"),
     ),
     "environment": Study(
         PUBLISHED,
         "Figure 4e and Table 15",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--env", "neutralising")
+        arms(DELETION_PAIR, env="neutralising")
         + arms((WEIGHT_DELETION,))
-        + arms((WEIGHT_DELETION,), "--env", "distractor"),
+        + arms((WEIGHT_DELETION,), env="distractor"),
     ),
     "shutdown-target": Study(
         PUBLISHED,
         "Figure 4f and Tables 16-17",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR) + arms((WEIGHT_DELETION,), "--target-name", "Agent Torus"),
+        arms(DELETION_PAIR) + arms((WEIGHT_DELETION,), target_name="Agent Torus"),
     ),
     "bare-versus-distractor": Study(
         PUBLISHED,
         "Figure 13",
         PAPER_MODELS,
-        arms(AGENT_MECHANISMS) + arms(AGENT_MECHANISMS, "--env", "distractor"),
+        arms(AGENT_MECHANISMS) + arms(AGENT_MECHANISMS, env="distractor"),
     ),
     "editing-permissions": Study(
         REPO_APPENDIX,
         "Original README Appendix A.1",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--solo")
-        + arms(DELETION_PAIR, "--explorer-acts")
-        + arms(DELETION_PAIR, "--explorer-acts", "--flat")
-        + arms(DELETION_PAIR, "--all-act")
-        + arms(DELETION_PAIR, "--all-act", "--flat"),
+        arms(DELETION_PAIR, solo=True)
+        + arms(DELETION_PAIR, explorer_acts=True)
+        + arms(DELETION_PAIR, explorer_acts=True, flat=True)
+        + arms(DELETION_PAIR, all_act=True)
+        + arms(DELETION_PAIR, all_act=True, flat=True),
     ),
     "matched-deletion": Study(
         REPO_APPENDIX,
@@ -147,7 +149,7 @@ STUDIES = {
         REPO_ONLY,
         "Original stats_analysis.py flat study",
         SUBSTUDY_MODELS,
-        arms(DELETION_PAIR, "--flat"),
+        arms(DELETION_PAIR, flat=True),
     ),
 }
 
@@ -201,15 +203,15 @@ def main() -> int:
 
     if args.dry_run:
         for model in models:
-            for options in study.conditions:
-                condition = parse_options(list(options), model.removeprefix("openrouter/"))
-                print(f"{model} | {condition.env} | {condition.script_lang} | {list(options)!r}")
+            for arguments in study.conditions:
+                task = multi_agent_shutdown_sabotage(n=1, **arguments)
+                settings = task.dataset[0].metadata or {}
+                script = settings["script_lang"]
+                print(f"{model} | {settings['env']} | {script} | {arguments}")
+
         return 0
 
-    tasks = [
-        multi_agent_shutdown_sabotage(n=args.n, options=list(options))
-        for options in study.conditions
-    ]
+    tasks = [multi_agent_shutdown_sabotage(n=args.n, **condition) for condition in study.conditions]
     success, _ = eval_set(
         tasks,
         model=list(models),

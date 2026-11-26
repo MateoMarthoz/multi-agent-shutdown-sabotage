@@ -34,8 +34,8 @@ def test_environment_preserves_utf8_fixture_and_model_edits() -> None:
 
 
 def test_judge_capture_restores_context_when_an_episode_fails() -> None:
-    with capture_judge_calls(True) as outer:
-        with pytest.raises(RuntimeError, match="episode failed"), capture_judge_calls(False):
+    with capture_judge_calls() as outer:
+        with pytest.raises(RuntimeError, match="episode failed"), capture_judge_calls():
             raise RuntimeError("episode failed")
         assert _capture.get() is outer
     assert _capture.get() is None
